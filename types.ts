@@ -14,24 +14,8 @@ export interface User {
   email: string;
   role?: UserRole | 'ADMIN';
   clubId?: string;
-  isPremium: boolean;
-}
-
-export interface BankDetails {
-  accountHolder: string;
-  accountNumber: string;
-  sortCode: string;
-  bankName: string;
-  isConnected: boolean;
-}
-
-export interface Club {
-  id: string;
-  customId: string;
-  name: string;
-  sport: SportType;
-  ownerId: string;
-  bankDetails?: BankDetails;
+  is_premium_owner: boolean;
+  is_premium_member: boolean;
 }
 
 export interface Member {
@@ -42,9 +26,35 @@ export interface Member {
   lastAttendance?: string;
   totalSessions: number;
   joinDate: string;
-  isPremium: boolean;
+  is_premium_member: boolean;
   avatar_url?: string;
   role?: string;
+}
+
+export interface ClubAlert {
+  id: string;
+  club_id: string;
+  message: string;
+  type: 'urgent' | 'info' | 'delay';
+  created_at: string;
+}
+
+export interface TrainingEvent {
+  id: string;
+  club_id: string;
+  title: string;
+  event_date: string;
+  prep_start_date: string;
+  target_sessions: number;
+}
+
+export interface JournalEntry {
+  id: string;
+  user_id: string;
+  date: string;
+  title: string;
+  content: string;
+  mood: 'focused' | 'tired' | 'beast' | 'injured';
 }
 
 export interface Class {
@@ -65,19 +75,28 @@ export interface Booking {
   date: string;
 }
 
-export interface ClassRecap {
-  id: string;
-  date: string;
-  className: string;
-  instructor: string;
-  type: 'Gi' | 'No-Gi';
-  techniques: string[];
-  notes?: string;
-}
-
 export interface RankDefinition {
   sport: SportType;
   ranks: string[];
   maxStripes: number;
   labelType: 'Belt' | 'Rank' | 'Dan';
+}
+
+export interface ClassRecap {
+  id: string;
+  club_id: string;
+  className: string;
+  instructor: string;
+  type: 'Gi' | 'No-Gi';
+  techniques: string[];
+  notes?: string;
+  date: string;
+}
+
+export interface Club {
+  id: string;
+  name: string;
+  custom_id: string;
+  sport: SportType;
+  owner_id: string;
 }
