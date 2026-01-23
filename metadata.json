@@ -1,0 +1,8 @@
+
+{
+  "name": "MatTrack",
+  "description": "The ultimate club management platform for BJJ, Judo, Wrestling, and grappling arts. Track attendance, manage belt ranks, and get AI-powered training insights.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
