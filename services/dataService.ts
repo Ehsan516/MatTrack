@@ -25,8 +25,8 @@ export const dataService = {
     return data;
   },
 
+  // Verify identity before sensitive actions
   async verifyPassword(email: string, password: string) {
-    // Supabase doesn't have a checkPassword, so we attempt a silent sign-in
     const { error } = await (supabase.auth as any).signInWithPassword({
       email,
       password,
@@ -137,7 +137,6 @@ export const dataService = {
   },
 
   async deleteClub(clubId: string) {
-    // Cleanup related data
     await supabase.from('classes').delete().eq('club_id', clubId);
     await supabase.from('class_recaps').delete().eq('club_id', clubId);
     await supabase.from('profiles').update({ club_id: null, role: null }).eq('club_id', clubId);

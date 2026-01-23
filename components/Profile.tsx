@@ -41,7 +41,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Optional: Check file size (e.g., < 2MB for base64 storage)
     if (file.size > 1024 * 1024) {
       alert("Please select an image smaller than 1MB.");
       return;
@@ -146,7 +145,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
       return;
     }
     try {
-      // If solo owner, delete club first
       if (role === UserRole.OWNER && otherMembers.length === 0) {
         await dataService.deleteClub(profileData.clubs.id);
       }
@@ -212,7 +210,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
             {profileData?.rank || 'White'} {rankDef.labelType}
           </button>
 
-          {/* BJJ Stripes */}
           {sport === 'BJJ' && !profileData?.rank?.toLowerCase().includes('degree') && !profileData?.rank?.toLowerCase().includes('coral') && (
             <div className="flex flex-col items-center gap-3 w-full bg-slate-900 p-4 rounded-3xl border border-slate-800">
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Stripe Progress</span>
@@ -230,7 +227,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         </div>
       </div>
 
-      {/* Main Settings List */}
       <div className="bg-slate-900 border border-slate-800 rounded-[32px] overflow-hidden">
         <div className="p-5 border-b border-slate-800">
           <h3 className="font-black text-slate-300 uppercase text-[10px] tracking-widest">Account & Academy</h3>
@@ -241,7 +237,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         </div>
       </div>
 
-      {/* Standard Sign Out Button */}
       <button 
         onClick={() => { (supabase.auth as any).signOut(); window.location.reload(); }}
         className="w-full bg-slate-900 hover:bg-slate-800 text-slate-500 font-black py-5 rounded-[32px] transition-all border border-slate-800 uppercase tracking-widest text-[11px] mt-4"
@@ -249,7 +244,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         Sign Out
       </button>
 
-      {/* Danger Zone: Hidden deep at the bottom */}
       <div className="pt-12 mt-12 border-t border-slate-900/50">
         <div className="bg-red-500/5 border border-red-500/10 rounded-[32px] overflow-hidden p-6 space-y-4">
           <div className="flex items-center gap-2 mb-2">
@@ -286,9 +280,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         </div>
       </div>
 
-      {/* --- MODALS --- */}
-
-      {/* Rank Modal */}
       {isEditingRank && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-sm p-6 rounded-[32px] shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
@@ -312,7 +303,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         </div>
       )}
 
-      {/* Transfer Ownership Modal */}
       {activeModal === 'transfer' && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-200">
            <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
@@ -350,7 +340,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         </div>
       )}
 
-      {/* Delete Club Modal */}
       {activeModal === 'delete_club' && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in duration-200">
            <div className="bg-slate-900 border border-red-500/30 w-full max-w-sm p-8 rounded-[40px] shadow-2xl space-y-6">
@@ -359,15 +348,15 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
               </div>
               <div className="text-center space-y-2">
                 <h3 className="text-white font-black uppercase text-sm tracking-widest">Delete Academy?</h3>
-                <p className="text-slate-500 text-[10px] font-medium leading-relaxed">This will permanently remove the roster, schedule, and all associated data for <span className="text-white font-black">{clubName}</span>.</p>
+                <p className="text-slate-500 text-[10px] font-medium leading-relaxed">Permanently removes <span className="text-white font-black">{clubName}</span> and all data.</p>
               </div>
               
               <div className="space-y-4">
-                <p className="text-[9px] font-black text-red-500 uppercase tracking-widest text-center">Verify Account Password</p>
+                <p className="text-[9px] font-black text-red-500 uppercase tracking-widest text-center">Verify Password</p>
                 <input 
                   type="password"
                   placeholder="Password" 
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white text-center text-sm outline-none focus:ring-1 focus:ring-red-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white text-center text-sm"
                   value={passwordInput}
                   onChange={e => setPasswordInput(e.target.value)}
                 />
@@ -378,16 +367,15 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
                  <button 
                   disabled={!passwordInput || loading}
                   onClick={handleDeleteClub} 
-                  className="flex-1 bg-red-600 text-white font-black py-4 rounded-2xl uppercase text-[10px] shadow-lg shadow-red-600/20"
+                  className="flex-1 bg-red-600 text-white font-black py-4 rounded-2xl uppercase text-[10px]"
                 >
-                  {loading ? 'Verifying...' : 'Delete Forever'}
+                  {loading ? 'Processing...' : 'Delete Academy'}
                 </button>
               </div>
            </div>
         </div>
       )}
 
-      {/* Delete Account Modal */}
       {activeModal === 'delete_account' && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in duration-200">
            <div className="bg-slate-900 border border-red-500/30 w-full max-w-sm p-8 rounded-[40px] shadow-2xl space-y-6">
@@ -396,24 +384,16 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
                 
                 {role === UserRole.OWNER && otherMembers.length > 0 ? (
                   <div className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20">
-                    <p className="text-red-400 text-[10px] font-black uppercase leading-relaxed">
-                      Ownership Transfer Required
-                    </p>
-                    <p className="text-slate-400 text-[9px] mt-1 italic">
-                      You cannot delete an account that owns a club with members. Please transfer ownership first.
-                    </p>
+                    <p className="text-red-400 text-[10px] font-black uppercase leading-relaxed text-center">Transfer Ownership Required</p>
+                    <p className="text-slate-400 text-[9px] mt-1 italic text-center">Transfer ownership before deleting your account.</p>
                   </div>
                 ) : role === UserRole.OWNER && otherMembers.length === 0 ? (
                   <div className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20">
-                    <p className="text-red-400 text-[10px] font-black uppercase leading-relaxed text-center">
-                      Club Deletion Warning
-                    </p>
-                    <p className="text-slate-400 text-[9px] mt-1 italic text-center">
-                      As the sole owner, deleting your account will permanently wipe <span className="text-white font-bold">{clubName}</span>.
-                    </p>
+                    <p className="text-red-400 text-[10px] font-black uppercase leading-relaxed text-center text-center">Club Deletion Warning</p>
+                    <p className="text-slate-400 text-[9px] mt-1 italic text-center text-center">This will also wipe <span className="text-white font-bold">{clubName}</span>.</p>
                   </div>
                 ) : (
-                  <p className="text-slate-500 text-[10px] font-medium leading-relaxed">Your profile, stats, and training logs will be wiped from the platform.</p>
+                  <p className="text-slate-500 text-[10px] font-medium leading-relaxed">Your profile and logs will be permanently wiped.</p>
                 )}
               </div>
               
@@ -437,7 +417,7 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
                     onClick={handleDeleteAccount} 
                     className="flex-1 bg-red-600 text-white font-black py-4 rounded-2xl uppercase text-[10px]"
                   >
-                    {loading ? 'Verifying...' : 'Delete Account'}
+                    {loading ? 'Processing...' : 'Delete Account'}
                   </button>
                  )}
               </div>
@@ -445,7 +425,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         </div>
       )}
 
-      {/* Security Modal */}
       {activeModal === 'security' && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-200">
            <div className="bg-slate-900 border border-slate-800 w-full max-w-sm p-8 rounded-[40px] shadow-2xl space-y-6">
@@ -467,7 +446,6 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         </div>
       )}
 
-      {/* Notifications Modal */}
       {activeModal === 'notifications' && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-200">
            <div className="bg-slate-900 border border-slate-800 w-full max-w-sm p-8 rounded-[40px] shadow-2xl space-y-6">
@@ -489,7 +467,7 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
       )}
       
       <div className="text-center py-4">
-        <p className="text-[9px] text-slate-700 font-black uppercase tracking-[0.3em]">MatTrack Platform v1.4.0</p>
+        <p className="text-[9px] text-slate-700 font-black uppercase tracking-[0.3em]">MatTrack Platform v1.5.0</p>
       </div>
     </div>
   );
