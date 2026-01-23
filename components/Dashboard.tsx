@@ -1,60 +1,63 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserRole, SportType, Member } from '../types';
+import { UserRole, SportType, Member, Class, Booking } from '../types';
 import { BarChart, Bar, XAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
+import { dataService } from '../services/dataService';
 
 interface DashboardProps {
+  userId: string;
   role: UserRole;
   sport: SportType;
   members: Member[];
   isPremium: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ role, sport, members, isPremium }) => {
-  // Weekly Target State
-  const [weeklyTarget, setWeeklyTarget] = useState<number>(() => {
-    const saved = localStorage.getItem('mt_weekly_target');
-    return saved ? parseInt(saved, 10) : 3;
-  });
-
-  // Current Attendance State (Simulated for the week)
-  const [attendanceCount, setAttendanceCount] = useState<number>(() => {
-    const saved = localStorage.getItem('mt_current_attendance');
-    // In a real app, logic would reset this if the week has changed
-    return saved ? parseInt(saved, 10) : 0;
-  });
-
+const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members, isPremium }) => {
+  const [weeklyTarget, setWeeklyTarget] = useState<number>(3);
+  const [attendanceCount, setAttendanceCount] = useState<number>(0);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
   const [tempTarget, setTempTarget] = useState(weeklyTarget);
-
-  const progressPercent = Math.min((attendanceCount / weeklyTarget) * 100, 100);
-
-  // Persistence
-  useEffect(() => {
-    localStorage.setItem('mt_weekly_target', weeklyTarget.toString());
-  }, [weeklyTarget]);
+  const [nextBooking, setNextBooking] = useState<(Booking & { classes: Class }) | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('mt_current_attendance', attendanceCount.toString());
-  }, [attendanceCount]);
+    const savedTarget = localStorage.getItem('mt_weekly_target');
+    if (savedTarget) setWeeklyTarget(parseInt(savedTarget, 10));
+    
+    const savedAttendance = localStorage.getItem('mt_current_attendance');
+    if (savedAttendance) setAttendanceCount(parseInt(savedAttendance, 10));
+
+    loadDashboardData();
+  }, [userId]);
+
+  const loadDashboardData = async () => {
+    if (userId) {
+      const booking = await dataService.getNextBooking(userId);
+      setNextBooking(booking);
+    }
+  };
 
   const saveTarget = () => {
     setWeeklyTarget(tempTarget);
+    localStorage.setItem('mt_weekly_target', tempTarget.toString());
     setIsEditingTarget(false);
   };
 
   const handleCheckIn = () => {
-    setAttendanceCount(prev => prev + 1);
+    const newCount = attendanceCount + 1;
+    setAttendanceCount(newCount);
+    localStorage.setItem('mt_current_attendance', newCount.toString());
   };
 
+  const progressPercent = Math.min((attendanceCount / weeklyTarget) * 100, 100);
+
   const data = [
-    { name: 'Mon', count: 12 },
-    { name: 'Tue', count: 18 },
-    { name: 'Wed', count: 15 },
-    { name: 'Thu', count: 24 },
-    { name: 'Fri', count: 11 },
-    { name: 'Sat', count: 32 },
-    { name: 'Sun', count: 8 },
+    { name: 'Mon', count: 0 },
+    { name: 'Tue', count: 0 },
+    { name: 'Wed', count: 0 },
+    { name: 'Thu', count: 0 },
+    { name: 'Fri', count: 0 },
+    { name: 'Sat', count: 0 },
+    { name: 'Sun', count: 0 },
   ];
 
   return (
@@ -69,13 +72,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role, sport, members, isPremium }
               onClick={handleCheckIn}
               className="bg-white text-indigo-600 hover:bg-indigo-50 text-xs font-black py-3 px-8 rounded-2xl transition-all uppercase tracking-widest active:scale-95 shadow-lg shadow-black/10"
             >
-              Check In
+              Quick Check-in
             </button>
-            {role === UserRole.OWNER && (
-              <button className="bg-indigo-500/30 backdrop-blur-md border border-white/20 text-white text-xs font-black py-3 px-8 rounded-2xl transition-all uppercase tracking-widest active:scale-95">
-                New Class
-              </button>
-            )}
           </div>
         </div>
         <div className="absolute top-0 right-0 p-8 opacity-10">
@@ -83,9 +81,28 @@ const Dashboard: React.FC<DashboardProps> = ({ role, sport, members, isPremium }
         </div>
       </section>
 
+      {/* Your Next Class (Dynamic) */}
+      {role === UserRole.MEMBER && nextBooking && (
+        <section className="bg-slate-900 border-2 border-indigo-500/30 rounded-3xl p-5 shadow-lg shadow-indigo-500/5 animate-in fade-in slide-in-from-top-2">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest italic">Your Next Class</h3>
+            <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-lg uppercase">Booked</span>
+          </div>
+          <div className="flex gap-4">
+            <div className="w-12 h-12 bg-indigo-600/10 rounded-2xl flex flex-col items-center justify-center border border-indigo-500/20">
+              <span className="text-xs font-black text-indigo-400 leading-none">{nextBooking.classes.time.split(':')[0]}</span>
+              <span className="text-[8px] font-bold text-slate-500 uppercase">{nextBooking.classes.day.substring(0,3)}</span>
+            </div>
+            <div>
+              <h4 className="text-white font-black italic uppercase tracking-tight">{nextBooking.classes.name}</h4>
+              <p className="text-slate-500 text-[11px] font-medium">with {nextBooking.classes.instructor} • {nextBooking.classes.type}</p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Main Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Weekly Target Card */}
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden shadow-sm">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -169,49 +186,41 @@ const Dashboard: React.FC<DashboardProps> = ({ role, sport, members, isPremium }
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl flex flex-col justify-between">
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Academy Rank</p>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Active Roster</p>
             <div>
-              <h3 className="text-2xl font-black text-white">#12</h3>
-              <p className="text-[10px] text-indigo-400 font-bold uppercase">Top 10% this month</p>
+              <h3 className="text-2xl font-black text-white">{members.length}</h3>
+              <p className="text-[10px] text-indigo-400 font-bold uppercase">Total Members</p>
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl flex flex-col justify-between">
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Mat Hours</p>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Total Mat Time</p>
             <div>
               <h3 className="text-2xl font-black text-white">{attendanceCount * 1.5}h</h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Total week time</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase">This week</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Heatmap Section */}
+      {/* Analytics (Locked if not premium) */}
       <section className="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden shadow-sm">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h3 className="font-black text-sm uppercase tracking-widest italic text-white">Academy Attendance</h3>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Peak times at your club</p>
+            <h3 className="font-black text-sm uppercase tracking-widest italic text-white">Academy Activity</h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Usage analytics across the gym</p>
           </div>
           {!isPremium && (
              <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
                 <svg className="w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"/></svg>
-                <span className="text-[9px] text-amber-500 font-black uppercase tracking-widest">Upgrade</span>
+                <span className="text-[9px] text-amber-500 font-black uppercase tracking-widest">Premium Only</span>
              </div>
           )}
         </div>
-        <div className="h-48 w-full">
+        <div className="h-48 w-full opacity-50">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 10, fontWeight: 800}} dy={10} />
-              <Tooltip 
-                cursor={{fill: '#1e293b', radius: 4}} 
-                contentStyle={{backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', fontWeight: 800, fontSize: '12px'}}
-              />
-              <Bar dataKey="count" radius={[6, 6, 6, 6]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={isPremium ? '#6366f1' : '#1e293b'} />
-                ))}
-              </Bar>
+              <Bar dataKey="count" fill="#1e293b" radius={[6, 6, 6, 6]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

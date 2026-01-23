@@ -1,5 +1,5 @@
 
-export type SportType = 'BJJ' | 'Judo' | 'Wrestling' | 'No-Gi';
+export type SportType = 'BJJ' | 'Judo' | 'Karate' | 'Taekwondo' | 'Wrestling' | 'No-Gi';
 
 export enum UserRole {
   OWNER = 'OWNER',
@@ -26,8 +26,8 @@ export interface BankDetails {
 }
 
 export interface Club {
-  id: string; // Internal UUID
-  customId: string; // The user-facing ID like 'GB-LDN'
+  id: string;
+  customId: string;
   name: string;
   sport: SportType;
   ownerId: string;
@@ -43,13 +43,26 @@ export interface Member {
   totalSessions: number;
   joinDate: string;
   isPremium: boolean;
+  // Added optional avatar_url to the Member interface
+  avatar_url?: string;
 }
 
-export interface TrainingSession {
+export interface Class {
   id: string;
+  club_id: string;
+  name: string;
+  instructor: string;
+  day: string;
+  time: string;
+  type: 'Gi' | 'No-Gi';
+  capacity?: number;
+}
+
+export interface Booking {
+  id: string;
+  user_id: string;
+  class_id: string;
   date: string;
-  type: string;
-  attendees: string[]; // Member IDs
 }
 
 export interface ClassRecap {
@@ -66,4 +79,5 @@ export interface RankDefinition {
   sport: SportType;
   ranks: string[];
   maxStripes: number;
+  labelType: 'Belt' | 'Rank' | 'Dan';
 }

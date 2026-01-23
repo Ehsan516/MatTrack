@@ -16,15 +16,11 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Owner specific
   const [clubName, setClubName] = useState('');
   const [customClubId, setCustomClubId] = useState('');
   const [selectedSport, setSelectedSport] = useState<SportType>('BJJ');
-
-  // Member specific
   const [targetClubId, setTargetClubId] = useState('');
 
-  // Auto-generate Club ID recommendation
   useEffect(() => {
     if (step === 'CLUB_SETUP' && clubName && !customClubId) {
       const generated = clubName.toUpperCase().replace(/\s+/g, '').substring(0, 10);
@@ -65,16 +61,15 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
     setLoading(true);
     setError(null);
     try {
-      // Fix: Casting to any to bypass the reported 'getUser' missing property error
       const { data } = await (supabase.auth as any).getUser();
       const user = data?.user;
       
       if (!user) throw new Error("User session not found.");
 
-      if (clubName) { // Owner Setup
+      if (clubName) { 
         const club = await dataService.createClub(user.id, clubName, customClubId, selectedSport);
         onComplete({ role: UserRole.OWNER, clubId: club.id, isPremium: false });
-      } else { // Member Join
+      } else { 
         const club = await dataService.joinClub(user.id, targetClubId);
         onComplete({ role: UserRole.MEMBER, clubId: club.id, isPremium: false });
       }
@@ -92,8 +87,8 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
         return (
           <div className="w-full max-sm:max-w-[320px] max-w-sm space-y-6 animate-in fade-in zoom-in-95 duration-300">
             <div className="text-center space-y-2">
-              <h1 className="text-3xl font-black tracking-tight text-white italic uppercase">
-                {step === 'LOGIN' ? 'Welcome Back' : 'Join MatTrack'}
+              <h1 className="text-3xl font-black tracking-tight text-white italic uppercase leading-none">
+                {step === 'LOGIN' ? 'Welcome Back' : 'Join the Mat'}
               </h1>
               {error && <p className="text-red-400 text-xs font-bold bg-red-500/10 p-2 rounded-lg">{error}</p>}
             </div>
@@ -102,25 +97,25 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
               {step === 'SIGNUP' && (
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Username</label>
-                  <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="jiujitsu_joe" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all" />
+                  <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="jiujitsu_joe" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all text-white placeholder:text-slate-700" />
                 </div>
               )}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@email.com" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all" />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="grappler@email.com" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all text-white placeholder:text-slate-700" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all" />
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all text-white placeholder:text-slate-700" />
               </div>
             </div>
 
-            <button onClick={handleAuth} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest">
+            <button onClick={handleAuth} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest">
               {loading ? 'Processing...' : step === 'LOGIN' ? 'Sign In' : 'Create Account'}
             </button>
 
-            <button onClick={() => setStep(step === 'LOGIN' ? 'SIGNUP' : 'LOGIN')} className="w-full text-xs font-bold text-slate-500 hover:text-indigo-400 uppercase tracking-widest">
-              {step === 'LOGIN' ? 'No account? Join free' : 'Already have an account? Log In'}
+            <button onClick={() => setStep(step === 'LOGIN' ? 'SIGNUP' : 'LOGIN')} className="w-full text-[10px] font-black text-slate-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">
+              {step === 'LOGIN' ? 'No account? Create profile' : 'Already on MatTrack? Log In'}
             </button>
           </div>
         );
@@ -129,17 +124,17 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
         return (
           <div className="w-full max-sm:max-w-[320px] max-w-sm space-y-8 animate-in zoom-in-95 duration-300">
             <div className="text-center">
-              <h1 className="text-3xl font-black text-white italic">CHOOSE YOUR ROLE</h1>
-              <p className="text-slate-400 mt-2">Are you managing a club or training?</p>
+              <h1 className="text-3xl font-black text-white italic uppercase tracking-tight">MISSION SELECT</h1>
+              <p className="text-slate-400 mt-2 text-sm">Define your path on the platform.</p>
             </div>
             <div className="space-y-4">
-              <button onClick={() => setStep('CLUB_SETUP')} className="w-full p-6 bg-slate-900 border border-slate-800 rounded-3xl text-left hover:border-indigo-600 transition-all group">
-                <h3 className="text-xl font-black text-white italic">CLUB OWNER</h3>
-                <p className="text-slate-500 text-sm mt-1">Setup your academy and roster.</p>
+              <button onClick={() => setStep('CLUB_SETUP')} className="w-full p-8 bg-slate-900 border border-slate-800 rounded-[32px] text-left hover:border-indigo-600 transition-all group active:scale-95 shadow-lg">
+                <h3 className="text-xl font-black text-white italic uppercase tracking-tight">ACADEMY OWNER</h3>
+                <p className="text-slate-500 text-sm mt-1">Setup your club, staff, and roster.</p>
               </button>
-              <button onClick={() => setStep('JOIN_CLUB')} className="w-full p-6 bg-slate-900 border border-slate-800 rounded-3xl text-left hover:border-indigo-600 transition-all group">
-                <h3 className="text-xl font-black text-white italic">STUDENT</h3>
-                <p className="text-slate-500 text-sm mt-1">Find your gym and track progress.</p>
+              <button onClick={() => setStep('JOIN_CLUB')} className="w-full p-8 bg-slate-900 border border-slate-800 rounded-[32px] text-left hover:border-indigo-600 transition-all group active:scale-95 shadow-lg">
+                <h3 className="text-xl font-black text-white italic uppercase tracking-tight">TEAM MEMBER</h3>
+                <p className="text-slate-500 text-sm mt-1">Connect to your gym and track progress.</p>
               </button>
             </div>
           </div>
@@ -149,20 +144,22 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
         return (
           <div className="w-full max-sm:max-w-[320px] max-w-sm space-y-6 animate-in slide-in-from-bottom-8 duration-300">
             <div className="text-center space-y-2">
-              <h1 className="text-3xl font-black text-white italic">ACADEMY SETUP</h1>
+              <h1 className="text-3xl font-black text-white italic uppercase leading-none">ACADEMY SETUP</h1>
               {error && <p className="text-red-400 text-xs font-bold">{error}</p>}
             </div>
             <div className="space-y-4">
-              <input placeholder="Academy Name" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm" value={clubName} onChange={e => setClubName(e.target.value)} />
-              <input placeholder="Custom Club ID (e.g. GRACIE-LDN)" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm font-mono" value={customClubId} onChange={e => setCustomClubId(e.target.value.toUpperCase())} />
-              <select className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm font-bold" value={selectedSport} onChange={e => setSelectedSport(e.target.value as SportType)}>
+              <input placeholder="Academy Name" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-white" value={clubName} onChange={e => setClubName(e.target.value)} />
+              <input placeholder="Custom Club ID (e.g. GRACIE-LDN)" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm font-mono text-indigo-400" value={customClubId} onChange={e => setCustomClubId(e.target.value.toUpperCase())} />
+              <select className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm font-black text-white uppercase tracking-widest outline-none focus:ring-2 focus:ring-indigo-600 appearance-none" value={selectedSport} onChange={e => setSelectedSport(e.target.value as SportType)}>
                 <option value="BJJ">Brazilian Jiu-Jitsu</option>
                 <option value="Judo">Judo</option>
+                <option value="Karate">Karate</option>
+                <option value="Taekwondo">Taekwondo</option>
                 <option value="Wrestling">Wrestling</option>
                 <option value="No-Gi">Grappling / No-Gi</option>
               </select>
             </div>
-            <button onClick={handleClubAction} disabled={loading || !clubName} className="w-full bg-indigo-600 py-4 rounded-2xl text-white font-black uppercase tracking-widest disabled:opacity-50">
+            <button onClick={handleClubAction} disabled={loading || !clubName} className="w-full bg-indigo-600 py-4 rounded-2xl text-white font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50">
               {loading ? 'Creating Academy...' : 'Launch Academy'}
             </button>
           </div>
@@ -172,12 +169,12 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
         return (
           <div className="w-full max-sm:max-w-[320px] max-w-sm space-y-8 animate-in slide-in-from-bottom-8 duration-300">
             <div className="text-center space-y-2">
-              <h1 className="text-3xl font-black text-white italic">JOIN CLUB</h1>
+              <h1 className="text-3xl font-black text-white italic uppercase">JOIN TEAM</h1>
               {error && <p className="text-red-400 text-xs font-bold">{error}</p>}
             </div>
-            <input placeholder="ENTER CLUB ID" className="w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center text-3xl font-black tracking-widest text-indigo-400" value={targetClubId} onChange={e => setTargetClubId(e.target.value.toUpperCase())} />
-            <button onClick={handleClubAction} disabled={loading || !targetClubId} className="w-full bg-indigo-600 py-5 rounded-3xl text-white font-black uppercase tracking-widest disabled:opacity-50">
-              {loading ? 'Joining...' : 'Find Academy'}
+            <input placeholder="ENTER CLUB ID" className="w-full bg-slate-900 border border-slate-800 rounded-[32px] p-8 text-center text-3xl font-black tracking-widest text-indigo-400 outline-none focus:ring-2 focus:ring-indigo-600 shadow-xl" value={targetClubId} onChange={e => setTargetClubId(e.target.value.toUpperCase())} />
+            <button onClick={handleClubAction} disabled={loading || !targetClubId} className="w-full bg-indigo-600 py-5 rounded-[32px] text-white font-black uppercase tracking-widest shadow-2xl transition-all active:scale-95 disabled:opacity-50">
+              {loading ? 'Searching...' : 'Connect to Club'}
             </button>
           </div>
         );

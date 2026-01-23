@@ -4,8 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 /**
  * MatTrack Supabase Configuration
  * 
- * attempt to pull these from process.env
- * if the .env file is not being automatically parsed into the process.env object by the host,fall back to the project's default credentials so 
+ * We attempt to pull these from process.env (Standard for this environment).
+ * If the .env file is not being automatically parsed into the process.env object
+ * by the host, we fall back to the project's default credentials to ensure 
  * the app remains operational.
  */
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://rchxjwovfjdzadeyvztj.supabase.co';

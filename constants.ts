@@ -1,63 +1,62 @@
 
-import { SportType, RankDefinition, ClassRecap } from './types';
+import { SportType, RankDefinition, ClassRecap, Member } from './types';
 
 export const SPORT_RANKS: Record<SportType, RankDefinition> = {
   'BJJ': {
     sport: 'BJJ',
-    ranks: ['White', 'Blue', 'Purple', 'Brown', 'Black'],
-    maxStripes: 4
+    ranks: [
+      'White', 'Blue', 'Purple', 'Brown', 'Black', 
+      'Black Belt 1st Degree', 'Black Belt 2nd Degree', 'Black Belt 3rd Degree',
+      'Black Belt 4th Degree', 'Black Belt 5th Degree', 'Black Belt 6th Degree',
+      'Coral Belt (7th Degree)', 'Coral Belt (8th Degree)', 'Red Belt (9th/10th Degree)'
+    ],
+    maxStripes: 4,
+    labelType: 'Belt'
   },
   'Judo': {
     sport: 'Judo',
-    ranks: ['White', 'Yellow', 'Orange', 'Green', 'Blue', 'Brown', 'Black'],
-    maxStripes: 0
+    ranks: [
+      'White', 'Yellow', 'Orange', 'Green', 'Blue', 'Brown', 
+      'Black (1st Dan)', 'Black (2nd Dan)', 'Black (3rd Dan)', 'Black (4th Dan)', 'Black (5th Dan)',
+      'Red-and-White (6th Dan)', 'Red-and-White (7th Dan)', 'Red-and-White (8th Dan)',
+      'Red (9th Dan)', 'Red (10th Dan)'
+    ],
+    maxStripes: 0,
+    labelType: 'Belt'
+  },
+  'Karate': {
+    sport: 'Karate',
+    ranks: [
+      'White', 'Yellow', 'Orange', 'Green', 'Blue', 'Purple', 'Brown', 
+      'Black (1st Dan)', 'Black (2nd Dan)', 'Black (3rd Dan)', 'Black (4th Dan)', 'Black (5th Dan)',
+      'Black (6th Dan)', 'Black (7th Dan)', 'Black (8th Dan)', 'Black (9th Dan)', 'Black (10th Dan)'
+    ],
+    maxStripes: 0,
+    labelType: 'Belt'
+  },
+  'Taekwondo': {
+    sport: 'Taekwondo',
+    ranks: [
+      'White', 'Yellow', 'Green', 'Blue', 'Red', 
+      'Black (1st Dan)', 'Black (2nd Dan)', 'Black (3rd Dan)', 'Black (4th Dan)', 'Black (5th Dan)',
+      'Black (6th Dan)', 'Black (7th Dan)', 'Black (8th Dan)', 'Black (9th Dan)'
+    ],
+    maxStripes: 0,
+    labelType: 'Belt'
   },
   'Wrestling': {
     sport: 'Wrestling',
     ranks: ['Beginner', 'Intermediate', 'Advanced', 'Elite'],
-    maxStripes: 0
+    maxStripes: 0,
+    labelType: 'Rank'
   },
   'No-Gi': {
     sport: 'No-Gi',
     ranks: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
-    maxStripes: 0
+    maxStripes: 0,
+    labelType: 'Rank'
   }
 };
 
-export const MOCK_MEMBERS = [
-  { id: '1', name: 'Alex Johnson', rank: 'Blue', stripes: 2, totalSessions: 45, joinDate: '2023-01-15', isPremium: true },
-  { id: '2', name: 'Sarah Miller', rank: 'White', stripes: 3, totalSessions: 12, joinDate: '2023-11-02', isPremium: false },
-  { id: '3', name: 'Marcus Aurelius', rank: 'Brown', stripes: 1, totalSessions: 230, joinDate: '2021-06-20', isPremium: true },
-  { id: '4', name: 'Li Wei', rank: 'Purple', stripes: 0, totalSessions: 112, joinDate: '2022-03-10', isPremium: false },
-  { id: '5', name: 'Chris Evans', rank: 'White', stripes: 0, totalSessions: 3, joinDate: '2024-02-01', isPremium: false },
-];
-
-export const MOCK_RECAPS: ClassRecap[] = [
-  {
-    id: 'r1',
-    date: 'Yesterday, 18:45',
-    className: 'Advanced Sparring',
-    instructor: 'Marcus A.',
-    type: 'Gi',
-    techniques: ['De La Riva Entry', 'Berimbolo Basics', 'Back Take from DLR'],
-    notes: 'Focused on hip mobility and weight distribution during the spin.'
-  },
-  {
-    id: 'r2',
-    date: 'Oct 22, 12:00',
-    className: 'Lunchtime No-Gi',
-    instructor: 'Sarah M.',
-    type: 'No-Gi',
-    techniques: ['Single Leg X Entry', 'Straight Ankle Lock Finish', 'SLX Sweep'],
-    notes: 'Emphasis on keeping the elbow tight during the ankle lock tension.'
-  },
-  {
-    id: 'r3',
-    date: 'Oct 21, 17:30',
-    className: 'Fundamentals',
-    instructor: 'Alex J.',
-    type: 'Gi',
-    techniques: ['Closed Guard Retention', 'Scissor Sweep', 'Cross Collar Choke'],
-    notes: 'Good attendance. Remember to keep the knee shield active!'
-  }
-];
+export const MOCK_MEMBERS: Member[] = [];
+export const MOCK_RECAPS: ClassRecap[] = [];
