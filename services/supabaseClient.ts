@@ -1,9 +1,9 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Replace these with your actual keys from Supabase Settings -> API
-// In a production environment, these should be in a .env file
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-project-id.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'your-anon-key';
+//accessing environment variables via Vite's import.meta.env
+//the "!" tells TypeScript taht these values exist
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

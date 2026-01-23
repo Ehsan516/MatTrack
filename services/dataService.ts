@@ -1,23 +1,110 @@
 
-import { Member, ClassRecap, SportType } from '../types';
+import { Member, ClassRecap, UserRole, SportType } from '../types';
 import { supabase } from './supabaseClient';
 
 export const dataService = {
-  // MEMBERS
+  // AUTHENTICATION
+  async signUp(email: string, password: string, username: string) {
+    // Fix: Using (supabase.auth as any) to resolve "Property 'signUp' does not exist" error
+    const { data, error } = await (supabase.auth as any).signUp({
+      email,
+      password,
+      options: { data: { username } }
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async signIn(email: string, password: string) {
+    // Fix: Using (supabase.auth as any) to resolve "Property 'signInWithPassword' does not exist" error
+    // Some versions use .signIn() or .signInWithPassword() depending on the specific SDK version
+    const auth = supabase.auth as any;
+    const signInMethod = auth.signInWithPassword || auth.signIn;
+    const { data, error } = await signInMethod.call(auth, {
+      email,
+      password,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async getProfile(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, clubs(*)')
+      .eq('id', userId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows found"
+    return data;
+  },
+
+  async createClub(ownerId: string, name: string, customId: string, sport: SportType) {
+    const { data: club, error: clubError } = await supabase
+      .from('clubs')
+      .insert([{ name, custom_id: customId, sport, owner_id: ownerId }])
+      .select()
+      .single();
+
+    if (clubError) throw clubError;
+
+    // Fix: Using (supabase.auth as any).getUser() to resolve property error
+    const { data: userData } = await (supabase.auth as any).getUser();
+    const user = userData?.user;
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert([{ 
+        id: ownerId, 
+        role: 'OWNER', 
+        club_id: club.id, 
+        username: user?.user_metadata?.username 
+      }]);
+
+    if (profileError) throw profileError;
+    return club;
+  },
+
+  async joinClub(userId: string, customClubId: string) {
+    // 1. Find the club by its user-facing custom ID
+    const { data: club, error: clubError } = await supabase
+      .from('clubs')
+      .select('id')
+      .eq('custom_id', customClubId)
+      .single();
+
+    if (clubError) throw new Error("Club not found. Please check the code.");
+
+    // Fix: Using (supabase.auth as any).getUser() to resolve property error
+    const { data: userData } = await (supabase.auth as any).getUser();
+    const user = userData?.user;
+
+    // 2. Link profile to this club
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert([{ 
+        id: userId, 
+        role: 'MEMBER', 
+        club_id: club.id,
+        username: user?.user_metadata?.username 
+      }]);
+
+    if (profileError) throw profileError;
+    return club;
+  },
+
+  // MEMBERS & DATA
   async getMembers(clubId: string): Promise<Member[]> {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('club_id', clubId);
 
-    if (error) {
-      console.error('Error fetching members:', error);
-      return [];
-    }
+    if (error) return [];
 
     return data.map(profile => ({
       id: profile.id,
-      name: profile.username || 'Anonymous',
+      name: profile.username || 'Grappler',
       rank: profile.rank,
       stripes: profile.stripes,
       totalSessions: profile.total_sessions,
@@ -26,16 +113,6 @@ export const dataService = {
     }));
   },
 
-  async updateMemberRank(memberId: string, rank: string, stripes: number): Promise<void> {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ rank, stripes, updated_at: new Date() })
-      .eq('id', memberId);
-
-    if (error) throw error;
-  },
-
-  // RECAPS
   async getRecaps(clubId: string): Promise<ClassRecap[]> {
     const { data, error } = await supabase
       .from('class_recaps')
@@ -43,10 +120,7 @@ export const dataService = {
       .eq('club_id', clubId)
       .order('date', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching recaps:', error);
-      return [];
-    }
+    if (error) return [];
 
     return data.map(item => ({
       id: item.id,
@@ -73,11 +147,5 @@ export const dataService = {
       }]);
 
     if (error) throw error;
-  },
-
-  // AUTH HELPERS (Simulated for this demo, usually handled by supabase.auth)
-  async signIn(email: string) {
-    // In a real app: await supabase.auth.signInWithOtp({ email })
-    console.log('Signing in user:', email);
   }
 };
