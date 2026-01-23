@@ -63,7 +63,8 @@ export interface Class {
   name: string;
   instructor: string;
   day: string;
-  time: string;
+  start_time: string;
+  end_time: string;
   type: 'Gi' | 'No-Gi';
   capacity?: number;
 }

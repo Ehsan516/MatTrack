@@ -109,8 +109,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members, isP
             <span className="bg-emerald-500/10 text-emerald-400 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase">Confirmed</span>
           </div>
           <div className="flex gap-5">
-            <div className="w-14 h-14 bg-indigo-600/10 rounded-2xl flex flex-col items-center justify-center border border-indigo-500/20">
-              <span className="text-lg font-black text-indigo-400 leading-none">{nextBooking.classes.time.split(':')[0]}</span>
+            <div className="w-14 h-14 bg-indigo-600/10 rounded-2xl flex flex-col items-center justify-center border border-indigo-500/20 shadow-inner">
+              <span className="text-lg font-black text-indigo-400 leading-none">{nextBooking.classes.start_time.split(':')[0]}</span>
               <span className="text-[10px] font-bold text-slate-500 uppercase">{nextBooking.classes.day.substring(0,3)}</span>
             </div>
             <div>

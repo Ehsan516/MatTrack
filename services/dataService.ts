@@ -23,6 +23,14 @@ export const dataService = {
     return data;
   },
 
+  async resendVerification(email: string) {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+    });
+    if (error) throw error;
+  },
+
   async signIn(email: string, password: string) {
     const auth = supabase.auth as any;
     const signInMethod = auth.signInWithPassword || auth.signIn;
@@ -44,17 +52,16 @@ export const dataService = {
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
     
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error) throw error;
     return data;
   },
 
   async updateProfile(userId: string, updates: any) {
     const { error } = await supabase
       .from('profiles')
-      .update(updates)
-      .eq('id', userId);
+      .upsert({ id: userId, ...updates }, { onConflict: 'id' });
     if (error) throw error;
   },
 
@@ -142,10 +149,10 @@ export const dataService = {
         stripes: p?.stripes || 0,
         totalSessions: p?.total_sessions || 0,
         joinDate: p?.created_at,
-        is_premium_member: p?.is_premium_member || false,
+        is_premium_member: p?.is_premium || false,
         avatar_url: p?.avatar_url,
         role: m.role,
-        lastAttendance: p?.last_attendance
+        lastAttendance: p?.updated_at
       };
     });
   },
@@ -165,7 +172,7 @@ export const dataService = {
       .select('*')
       .eq('club_id', clubId)
       .order('day', { ascending: true })
-      .order('time', { ascending: true });
+      .order('start_time', { ascending: true });
 
     if (error) return [];
     return data;
@@ -174,7 +181,22 @@ export const dataService = {
   async createClass(clubId: string, classData: Omit<Class, 'id' | 'club_id'>): Promise<void> {
     const { error } = await supabase
       .from('classes')
-      .insert([{ club_id: clubId, ...classData }]);
+      .insert([{ 
+        club_id: clubId, 
+        name: classData.name,
+        instructor: classData.instructor,
+        day: classData.day,
+        start_time: classData.start_time,
+        end_time: classData.end_time,
+        type: classData.type,
+        capacity: classData.capacity
+      }]);
+    if (error) throw error;
+  },
+
+  async deleteClass(classId: string) {
+    await supabase.from('bookings').delete().eq('class_id', classId);
+    const { error } = await supabase.from('classes').delete().eq('id', classId);
     if (error) throw error;
   },
 
@@ -215,7 +237,7 @@ export const dataService = {
         stripes: p?.stripes || 0,
         totalSessions: p?.total_sessions || 0,
         joinDate: p?.created_at,
-        is_premium_member: p?.is_premium_member || false,
+        is_premium_member: p?.is_premium || false,
         avatar_url: p?.avatar_url
       };
     });
@@ -242,13 +264,14 @@ export const dataService = {
   },
 
   async postAlert(clubId: string, message: string, type: string) {
+    // Note: club_alerts table was not in your schema list but we keep it for now
     const { error } = await supabase
       .from('club_alerts')
       .insert([{ club_id: clubId, message, type }]);
     if (error) throw error;
   },
 
-  async getAlerts(clubId: string): Promise<ClubAlert[]> {
+  async getAlerts(clubId: string): Promise<any[]> {
     const { data, error } = await supabase
       .from('club_alerts')
       .select('*')
@@ -259,6 +282,7 @@ export const dataService = {
   },
 
   async createEvent(clubId: string, eventData: Omit<TrainingEvent, 'id' | 'club_id'>) {
+    // Note: training_events table was not in your schema list but we keep it for now
     const { error } = await supabase
       .from('training_events')
       .insert([{ club_id: clubId, ...eventData }]);
@@ -276,22 +300,35 @@ export const dataService = {
 
   async saveRecap(clubId: string, recapData: Omit<ClassRecap, 'id' | 'club_id' | 'date'>) {
     const { error } = await supabase
-      .from('class_recap')
+      .from('class_recaps')
       .insert([{
         club_id: clubId,
-        ...recapData,
-        date: new Date().toISOString().split('T')[0]
+        class_name: recapData.className,
+        instructor: recapData.instructor,
+        type: recapData.type,
+        techniques: recapData.techniques,
+        notes: recapData.notes,
+        date: new Date().toISOString()
       }]);
     if (error) throw error;
   },
 
   async getRecaps(clubId: string): Promise<ClassRecap[]> {
     const { data, error } = await supabase
-      .from('class_recap')
+      .from('class_recaps')
       .select('*')
       .eq('club_id', clubId)
       .order('date', { ascending: false });
     if (error) return [];
-    return data;
+    return data.map(r => ({
+      id: r.id,
+      club_id: r.club_id,
+      className: r.class_name,
+      instructor: r.instructor,
+      type: r.type,
+      techniques: r.techniques,
+      notes: r.notes,
+      date: r.date
+    }));
   }
 };

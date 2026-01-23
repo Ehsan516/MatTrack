@@ -25,7 +25,8 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
     name: '',
     instructor: '',
     day: 'Monday',
-    time: '18:00',
+    start_time: '18:00',
+    end_time: '19:30',
     type: 'Gi' as 'Gi' | 'No-Gi',
     capacity: 20
   });
@@ -70,7 +71,29 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
       await dataService.createClass(clubId, newClass);
       setIsAddingClass(false);
       loadSchedule();
-    } catch (err) { alert("Failed to create class."); }
+      // Reset form
+      setNewClass({
+        name: '',
+        instructor: '',
+        day: 'Monday',
+        start_time: '18:00',
+        end_time: '19:30',
+        type: 'Gi',
+        capacity: 20
+      });
+    } catch (err: any) { 
+      alert("Failed to create class: " + (err.message || "Unknown error")); 
+    }
+  };
+
+  const handleDeleteClass = async (classId: string) => {
+    if (!confirm("Are you sure you want to delete this session? This will remove all bookings for it.")) return;
+    try {
+      await dataService.deleteClass(classId);
+      loadSchedule();
+    } catch (err) {
+      alert("Failed to delete class. Ensure you have ownership permissions.");
+    }
   };
 
   const handleBook = async (classId: string) => {
@@ -131,38 +154,54 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
           {isOwner && (
             <button 
               onClick={() => setIsAddingClass(true)}
-              className="w-full bg-slate-900 border-2 border-dashed border-slate-800 py-6 rounded-3xl text-slate-500 font-black uppercase tracking-widest text-xs hover:border-indigo-500 hover:text-indigo-400 transition-all"
+              className="w-full bg-slate-900 border-2 border-dashed border-slate-800 py-6 rounded-3xl text-slate-500 font-black uppercase tracking-widest text-xs hover:border-indigo-500 hover:text-indigo-400 transition-all shadow-inner"
             >
               + Create New Class
             </button>
           )}
 
-          {classes.map((c) => (
-            <div key={c.id} className="bg-slate-900 border border-slate-800 rounded-[32px] p-6 flex flex-col gap-6 shadow-sm group">
-              <div className="flex justify-between items-start">
-                <div className="flex gap-4">
-                  <div className="w-14 h-14 bg-slate-950 rounded-2xl flex flex-col items-center justify-center border border-slate-800">
-                    <span className="text-lg font-black text-white">{c.time}</span>
-                    <span className="text-[8px] font-bold text-slate-500 uppercase">{c.day.substring(0,3)}</span>
+          {classes.length === 0 ? (
+            <div className="text-center py-20 bg-slate-900/50 border border-dashed border-slate-800 rounded-[40px]">
+              <p className="text-slate-600 font-black italic uppercase text-xs tracking-widest">No classes scheduled yet</p>
+            </div>
+          ) : (
+            classes.map((c) => (
+              <div key={c.id} className="bg-slate-900 border border-slate-800 rounded-[32px] p-6 flex flex-col gap-6 shadow-sm group relative">
+                <div className="flex justify-between items-start">
+                  <div className="flex gap-4">
+                    <div className="w-16 h-16 bg-slate-950 rounded-2xl flex flex-col items-center justify-center border border-slate-800 shadow-inner">
+                      <span className="text-[10px] font-black text-indigo-400 leading-none mb-1">{c.start_time}</span>
+                      <div className="w-1 h-2 bg-slate-800 rounded-full my-0.5"></div>
+                      <span className="text-[10px] font-black text-slate-500 leading-none">{c.end_time}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-white italic uppercase tracking-tight">{c.name}</h3>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                        {c.day} • Coach {c.instructor} • {c.type}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-white italic uppercase tracking-tight">{c.name}</h3>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Instructor: {c.instructor} • {c.type}</p>
+                  <div className="flex flex-col items-end gap-2">
+                    <button onClick={() => showAttendance(c)} className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1.5 rounded-xl hover:bg-indigo-500/20 transition-all border border-indigo-500/20">
+                      Who's Training?
+                    </button>
+                    {isOwner && (
+                      <button onClick={() => handleDeleteClass(c.id)} className="text-[9px] font-black text-red-500/60 uppercase hover:text-red-500 transition-colors">
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
-                <button onClick={() => showAttendance(c)} className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1.5 rounded-xl hover:bg-indigo-500/20 transition-all">
-                  Who's Training?
-                </button>
-              </div>
 
-              <div className="flex gap-3">
-                <button onClick={() => handleBook(c.id)} className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Reserve Spot</button>
-                {isOwner && (
-                  <button onClick={() => setIsAddingRecap(c)} className="bg-slate-800 text-slate-300 font-black py-4 px-6 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-700">Log Recap</button>
-                )}
+                <div className="flex gap-3">
+                  <button onClick={() => handleBook(c.id)} className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Reserve Spot</button>
+                  {isOwner && (
+                    <button onClick={() => setIsAddingRecap(c)} className="bg-slate-800 text-slate-300 font-black py-4 px-6 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-colors">Log Recap</button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
@@ -173,11 +212,11 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
               <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-4"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
               <p className="text-white font-black italic uppercase text-lg">Pro Feature</p>
               <p className="text-slate-500 text-xs mt-2 font-medium">Competition Prep Cycles and Events are exclusive to MatTrack Pro members.</p>
+              <p className="text-amber-500 text-[10px] font-black mt-4 uppercase tracking-[0.2em]">Upgrade for £4.99/mo</p>
             </div>
           ) : (
-            // Premium Events Logic (Existing)
-            <div className="animate-in slide-in-from-right-8 duration-300">
-               {/* ... (Existing events map logic) */}
+            <div className="animate-in slide-in-from-right-8 duration-300 text-center py-20">
+               <p className="text-slate-600 font-black italic uppercase text-xs">No active prep cycles found</p>
             </div>
           )}
         </div>
@@ -261,25 +300,43 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
           <form onSubmit={handleCreateClass} className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
             <h3 className="text-xl font-black text-white italic uppercase text-center">Setup New Session</h3>
             <div className="space-y-4">
-               <input required placeholder="Class Name (e.g. Fundamental Gi)" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.name} onChange={e => setNewClass({...newClass, name: e.target.value})} />
-               <input required placeholder="Instructor" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.instructor} onChange={e => setNewClass({...newClass, instructor: e.target.value})} />
-               <div className="grid grid-cols-2 gap-4">
-                 <select className="bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.day} onChange={e => setNewClass({...newClass, day: e.target.value})}>
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
-                 </select>
-                 <input type="time" className="bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.time} onChange={e => setNewClass({...newClass, time: e.target.value})} />
+               <div className="space-y-1">
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Class Name</label>
+                 <input required placeholder="e.g. Fundamental Gi" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.name} onChange={e => setNewClass({...newClass, name: e.target.value})} />
+               </div>
+               <div className="space-y-1">
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Instructor</label>
+                 <input required placeholder="Coach Name" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.instructor} onChange={e => setNewClass({...newClass, instructor: e.target.value})} />
                </div>
                <div className="grid grid-cols-2 gap-4">
-                 <select className="bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.type} onChange={e => setNewClass({...newClass, type: e.target.value as any})}>
-                    <option value="Gi">Gi</option>
-                    <option value="No-Gi">No-Gi</option>
-                 </select>
-                 <input type="number" placeholder="Capacity" className="bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.capacity} onChange={e => setNewClass({...newClass, capacity: parseInt(e.target.value)})} />
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Day</label>
+                   <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold appearance-none outline-none focus:ring-2 focus:ring-indigo-600" value={newClass.day} onChange={e => setNewClass({...newClass, day: e.target.value})}>
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
+                   </select>
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Type</label>
+                   <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold appearance-none outline-none focus:ring-2 focus:ring-indigo-600" value={newClass.type} onChange={e => setNewClass({...newClass, type: e.target.value as any})}>
+                      <option value="Gi">Gi</option>
+                      <option value="No-Gi">No-Gi</option>
+                   </select>
+                 </div>
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
+                   <input type="time" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.start_time} onChange={e => setNewClass({...newClass, start_time: e.target.value})} />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">End Time</label>
+                   <input type="time" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.end_time} onChange={e => setNewClass({...newClass, end_time: e.target.value})} />
+                 </div>
                </div>
             </div>
             <div className="flex gap-4">
-               <button type="button" onClick={() => setIsAddingClass(false)} className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase text-xs">Cancel</button>
-               <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-indigo-600/20">Launch Class</button>
+               <button type="button" onClick={() => setIsAddingClass(false)} className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase text-xs hover:bg-slate-700 transition-colors">Cancel</button>
+               <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">Launch Class</button>
             </div>
           </form>
         </div>

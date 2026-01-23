@@ -20,7 +20,7 @@ const App: React.FC = () => {
   const [sport, setSport] = useState<SportType>('BJJ');
   const [members, setMembers] = useState<Member[]>([]);
   const [isPremium, setIsPremium] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   
   const [profileData, setProfileData] = useState<any>(null);
@@ -54,8 +54,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (userId) {
-      loadMemberships();
-      loadProfile();
+      initializeApp();
+    } else {
+      setLoading(false);
     }
   }, [userId]);
 
@@ -69,6 +70,20 @@ const App: React.FC = () => {
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
       setUserId(data.session.user.id);
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const initializeApp = async () => {
+    setLoading(true);
+    try {
+      await loadProfile(); // Load profile first to get premium status
+      await loadMemberships();
+    } catch (err) {
+      console.error("Initialization error", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -96,7 +111,6 @@ const App: React.FC = () => {
       } else {
         setActiveClub(null);
         setRole(null);
-        setShowJoinModal(true);
       }
     } catch (err: any) {
       console.error("Failed to load memberships", err);
@@ -105,14 +119,11 @@ const App: React.FC = () => {
 
   const loadMembers = async () => {
     if (!activeClub) return;
-    setLoading(true);
     try {
       const data = await dataService.getMembers(activeClub.id);
       setMembers(data);
     } catch (err) {
       console.error("Failed to load members", err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -121,22 +132,25 @@ const App: React.FC = () => {
     try {
       const profile = await dataService.getProfile(userId);
       setProfileData(profile);
-      // Owner gets premium by default if it's their project, otherwise based on flag
-      const hasPremium = role === UserRole.OWNER ? profile?.is_premium_owner : profile?.is_premium_member;
-      setIsPremium(!!hasPremium);
-      if (!profile?.username || profile.username === 'New Owner' || profile.username === 'New Member') {
+      setIsPremium(!!profile?.is_premium);
+      
+      const isNew = !profile?.username || 
+                    profile.username === 'New Owner' || 
+                    profile.username === 'New Member' ||
+                    profile.username === 'Grappler';
+      
+      if (isNew) {
         setShowSetupModal(true);
+      } else {
+        setShowSetupModal(false);
       }
     } catch (err) {
       console.error("Error loading profile", err);
     }
   };
 
-  const handleAuthComplete = async () => {
-    const { data: userData } = await (supabase.auth as any).getUser();
-    if (userData?.user) {
-      setUserId(userData.user.id);
-    }
+  const handleAuthComplete = () => {
+    checkUser();
   };
 
   const handleSwitchClub = (membership: any) => {
@@ -189,6 +203,15 @@ const App: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center space-y-6">
+        <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin shadow-lg"></div>
+        <p className="text-slate-500 font-black uppercase tracking-widest text-xs animate-pulse">Entering Dojo...</p>
+      </div>
+    );
+  }
+
   if (!userId) {
     return <Auth onComplete={handleAuthComplete} />;
   }
@@ -199,29 +222,26 @@ const App: React.FC = () => {
     if (role === 'ADMIN') return <AdminDashboard />;
     if (noClubJoined) return (
       <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 animate-in zoom-in-95">
-        <div className="w-24 h-24 bg-indigo-600/10 rounded-full flex items-center justify-center text-indigo-500">
+        <div className="w-24 h-24 bg-indigo-600/10 rounded-[40px] flex items-center justify-center text-indigo-500 shadow-xl border border-indigo-500/20">
           <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
         </div>
         <div className="max-w-xs space-y-2">
-          <h2 className="text-3xl font-black italic uppercase text-white leading-none">No Academy</h2>
-          <p className="text-slate-400 text-sm">Join a team or start your own academy to begin tracking.</p>
+          <h2 className="text-3xl font-black italic uppercase text-white leading-none tracking-tight">No Academy Joined</h2>
+          <p className="text-slate-500 text-sm">Join an existing team or launch your own academy to start tracking your progress.</p>
         </div>
         <button 
           onClick={() => setShowJoinModal(true)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 px-10 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-xs"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 px-12 rounded-[24px] shadow-2xl shadow-indigo-600/30 transition-all active:scale-95 uppercase tracking-widest text-[11px]"
         >
-          Get Started
+          Join or Create Academy
         </button>
       </div>
     );
-    
-    const isOwnerContext = role === UserRole.OWNER;
     
     switch (activeTab) {
       case 'dashboard': return <Dashboard userId={userId} role={role as UserRole} sport={sport} members={members} isPremium={isPremium} />;
       case 'members': return <MemberList members={members} sport={sport} role={role as UserRole} clubId={activeClub?.id} onRefresh={loadMembers} />;
       case 'journal': return <Journal userId={userId} role={role as UserRole} isPremium={isPremium} members={members} onUpgrade={() => setActiveTab('profile')} />;
-      // Fix: Passing isPremium prop to Schedule component
       case 'schedule': return <Schedule userId={userId} role={role as UserRole} clubId={activeClub?.id || ''} sport={sport} isPremium={isPremium} />;
       case 'profile': return <Profile role={role as UserRole} isPremium={isPremium} onUpgrade={loadProfile} profileData={profileData} onRefreshProfile={loadProfile} members={members} club={activeClub} onClubAction={loadMemberships} />;
       default: return null;
@@ -238,12 +258,12 @@ const App: React.FC = () => {
             onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
             className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
           >
-            <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center">
+            <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center shadow-lg">
                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M2 3h20"/><path d="M5 3v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3"/></svg>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-tight leading-none">MatTrack</span>
-              {activeClub && <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+              <span className="font-bold text-lg tracking-tight leading-none uppercase italic">MatTrack</span>
+              {activeClub && <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
                 {activeClub.custom_id}
                 <svg className={`w-2 h-2 transition-transform ${isSwitcherOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7"/></svg>
               </span>}
@@ -258,7 +278,6 @@ const App: React.FC = () => {
               </div>
               {memberships.map((m) => {
                 const isActive = activeClub?.id === m.club_id;
-                const mRole = (m.role?.toString().toUpperCase() === 'OWNER' || m.clubs.owner_id === userId) ? 'OWNER' : 'MEMBER';
                 return (
                   <button 
                     key={m.id}
@@ -270,9 +289,8 @@ const App: React.FC = () => {
                         <span className={`text-sm font-black ${isActive ? 'text-indigo-400' : 'text-white'}`}>{m.clubs.name}</span>
                         {isActive && <span className="text-[7px] bg-indigo-600 text-white px-1 py-0.5 rounded font-black uppercase">Active</span>}
                       </div>
-                      <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tight">{mRole} • {m.clubs.sport}</span>
+                      <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tight">{m.clubs.sport}</span>
                     </div>
-                    {!isActive && <svg className="w-4 h-4 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 5l7 7-7 7"/></svg>}
                   </button>
                 );
               })}
@@ -284,7 +302,7 @@ const App: React.FC = () => {
                   <div className="w-5 h-5 bg-indigo-600/20 rounded flex items-center justify-center">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 4v16m8-8H4"/></svg>
                   </div>
-                  Add Another Academy
+                  Join/Create Academy
                 </button>
               </div>
             </div>
@@ -312,6 +330,100 @@ const App: React.FC = () => {
           <NavItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon="user" label="Profile" />
         </div>
       </nav>
+
+      {/* SETUP MODAL: Name entry */}
+      {showSetupModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
+           <div className="bg-slate-900 border border-slate-800 w-full max-w-sm p-10 rounded-[48px] shadow-2xl space-y-8 text-center">
+              <div className="w-20 h-20 bg-indigo-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl shadow-indigo-600/20 rotate-3">
+                 <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              </div>
+              <div className="space-y-2">
+                 <h3 className="text-2xl font-black italic uppercase text-white tracking-tight">Identity Setup</h3>
+                 <p className="text-slate-500 text-xs font-medium">How should the academy recognize you?</p>
+              </div>
+              <input 
+                placeholder="Full Name (e.g. Joe Rogan)" 
+                className="w-full bg-slate-950 border border-slate-800 p-5 rounded-3xl text-white font-black uppercase tracking-tight outline-none focus:ring-2 focus:ring-indigo-600 text-center" 
+                value={newName} 
+                onChange={e => setNewName(e.target.value)} 
+              />
+              <button onClick={handleUpdateName} disabled={!newName.trim() || loading} className="w-full bg-indigo-600 py-5 rounded-3xl text-white font-black uppercase tracking-widest text-[11px] shadow-2xl active:scale-95 transition-all">
+                {loading ? 'Saving...' : 'Set Identity'}
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* JOIN/CREATE MODAL */}
+      {showJoinModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
+           <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xl font-black italic text-white uppercase tracking-tight">Academy Hub</h3>
+                <button onClick={() => setShowJoinModal(false)} className="p-2 text-slate-500 hover:text-white"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+              </div>
+              
+              {joinStep === 'SELECT' && (
+                <div className="grid grid-cols-1 gap-4 py-4">
+                  <button onClick={() => setJoinStep('JOIN')} className="p-8 bg-slate-950 border border-slate-800 rounded-[32px] text-left hover:border-indigo-600 transition-all group shadow-inner">
+                    <h4 className="text-lg font-black text-white italic uppercase">Join a Team</h4>
+                    <p className="text-slate-500 text-xs mt-1">Connect to your existing club using their ID.</p>
+                  </button>
+                  <button onClick={() => setJoinStep('CREATE')} className="p-8 bg-slate-950 border border-slate-800 rounded-[32px] text-left hover:border-indigo-600 transition-all group shadow-inner">
+                    <h4 className="text-lg font-black text-white italic uppercase">Launch Academy</h4>
+                    <p className="text-slate-500 text-xs mt-1">Start your own academy and manage your roster.</p>
+                  </button>
+                </div>
+              )}
+
+              {joinStep === 'JOIN' && (
+                <div className="space-y-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Academy ID</label>
+                    <input 
+                      placeholder="e.g. GRACIE-LDN" 
+                      className="w-full bg-slate-950 border border-slate-800 p-5 rounded-3xl text-center text-3xl font-black tracking-widest text-indigo-400 uppercase outline-none" 
+                      value={joinClubId} 
+                      onChange={e => setJoinClubId(e.target.value.toUpperCase())} 
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => setJoinStep('SELECT')} className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase text-xs">Back</button>
+                    <button onClick={handleJoinOrCreate} disabled={loading || !joinClubId} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg">Connect</button>
+                  </div>
+                </div>
+              )}
+
+              {joinStep === 'CREATE' && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Academy Name</label>
+                    <input placeholder="Gracie Jiu-Jitsu London" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClubName} onChange={e => setNewClubName(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Academy Custom ID</label>
+                    <input placeholder="GRACIE-LDN" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-indigo-400 font-mono text-sm" value={newClubCustomId} onChange={e => setNewClubCustomId(e.target.value.toUpperCase())} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Primary Sport</label>
+                    <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-black uppercase tracking-widest text-xs" value={newClubSport} onChange={e => setNewClubSport(e.target.value as SportType)}>
+                      <option value="BJJ">Brazilian Jiu-Jitsu</option>
+                      <option value="No-Gi">No-Gi / Grappling</option>
+                      <option value="Judo">Judo</option>
+                      <option value="Wrestling">Wrestling</option>
+                      <option value="Karate">Karate</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button onClick={() => setJoinStep('SELECT')} className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase text-xs">Back</button>
+                    <button onClick={handleJoinOrCreate} disabled={loading || !newClubName} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg">Launch</button>
+                  </div>
+                </div>
+              )}
+           </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -331,7 +443,7 @@ const NavItem: React.FC<{active: boolean, onClick: () => void, icon: string, lab
         {icons[icon]}
         {isPremiumIndicator && <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-pulse shadow-sm"></div>}
       </div>
-      <span className="text-[10px] mt-1 font-medium">{label}</span>
+      <span className="text-[10px] mt-1 font-black uppercase tracking-widest">{label}</span>
     </button>
   );
 };
