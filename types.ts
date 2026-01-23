@@ -43,8 +43,8 @@ export interface Member {
   totalSessions: number;
   joinDate: string;
   isPremium: boolean;
-  // Added optional avatar_url to the Member interface
   avatar_url?: string;
+  role?: string;
 }
 
 export interface Class {

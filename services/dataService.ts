@@ -25,7 +25,11 @@ export const dataService = {
     return data;
   },
 
-  // Verify identity before sensitive actions
+  async signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
   async verifyPassword(email: string, password: string) {
     const { error } = await (supabase.auth as any).signInWithPassword({
       email,
@@ -42,7 +46,7 @@ export const dataService = {
   async getProfile(userId: string) {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*, clubs(*)')
+      .select('*')
       .eq('id', userId)
       .single();
     
@@ -58,6 +62,17 @@ export const dataService = {
     if (error) throw error;
   },
 
+  // MULTI-CLUB MEMBERSHIPS
+  async getUserMemberships(userId: string) {
+    const { data, error } = await supabase
+      .from('memberships')
+      .select('*, clubs(*)')
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+    return data;
+  },
+
   async createClub(ownerId: string, name: string, customId: string, sport: SportType) {
     const { data: club, error: clubError } = await supabase
       .from('clubs')
@@ -67,21 +82,18 @@ export const dataService = {
 
     if (clubError) throw clubError;
 
+    const { error: memError } = await supabase
+      .from('memberships')
+      .insert([{ user_id: ownerId, club_id: club.id, role: 'OWNER' }]);
+
+    if (memError) throw memError;
+
     const { data: userData } = await (supabase.auth as any).getUser();
-    const user = userData?.user;
+    await supabase.from('profiles').upsert([{ 
+      id: ownerId, 
+      username: userData?.user?.user_metadata?.username || 'New Owner'
+    }]);
 
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert([{ 
-        id: ownerId, 
-        role: 'OWNER', 
-        club_id: club.id, 
-        username: user?.user_metadata?.username || 'New Owner',
-        rank: 'White',
-        stripes: 0
-      }]);
-
-    if (profileError) throw profileError;
     return club;
   },
 
@@ -94,65 +106,66 @@ export const dataService = {
 
     if (clubError) throw new Error("Club not found. Please check the code.");
 
+    const { data: existing } = await supabase
+      .from('memberships')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('club_id', club.id)
+      .maybeSingle();
+
+    if (existing) throw new Error("You are already a member of this academy.");
+
+    const { error: memError } = await supabase
+      .from('memberships')
+      .insert([{ user_id: userId, club_id: club.id, role: 'MEMBER' }]);
+
+    if (memError) throw memError;
+
     const { data: userData } = await (supabase.auth as any).getUser();
-    const user = userData?.user;
+    await supabase.from('profiles').upsert([{ 
+      id: userId, 
+      username: userData?.user?.user_metadata?.username || 'New Member'
+    }]);
 
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert([{ 
-        id: userId, 
-        role: 'MEMBER', 
-        club_id: club.id,
-        username: user?.user_metadata?.username || 'New Member',
-        rank: 'White',
-        stripes: 0
-      }]);
-
-    if (profileError) throw profileError;
     return club;
+  },
+
+  async leaveClub(userId: string, clubId: string) {
+    const { error } = await supabase
+      .from('memberships')
+      .delete()
+      .eq('user_id', userId)
+      .eq('club_id', clubId);
+    if (error) throw error;
+  },
+
+  async removeMember(clubId: string, memberId: string) {
+    const { error } = await supabase
+      .from('memberships')
+      .delete()
+      .eq('user_id', memberId)
+      .eq('club_id', clubId);
+    if (error) throw error;
   },
 
   // DANGER ZONE ACTIONS
   async transferOwnership(clubId: string, currentOwnerId: string, newOwnerId: string) {
-    // 1. Update Profile of New Owner
-    const { error: newOwnerError } = await supabase
-      .from('profiles')
-      .update({ role: 'OWNER' })
-      .eq('id', newOwnerId);
-    if (newOwnerError) throw newOwnerError;
-
-    // 2. Update Profile of Old Owner
-    const { error: oldOwnerError } = await supabase
-      .from('profiles')
-      .update({ role: 'MEMBER' })
-      .eq('id', currentOwnerId);
-    if (oldOwnerError) throw oldOwnerError;
-
-    // 3. Update Club Owner reference
-    const { error: clubError } = await supabase
-      .from('clubs')
-      .update({ owner_id: newOwnerId })
-      .eq('id', clubId);
-    if (clubError) throw clubError;
+    await supabase.from('memberships').update({ role: 'OWNER' }).eq('user_id', newOwnerId).eq('club_id', clubId);
+    await supabase.from('memberships').update({ role: 'MEMBER' }).eq('user_id', currentOwnerId).eq('club_id', clubId);
+    await supabase.from('clubs').update({ owner_id: newOwnerId }).eq('id', clubId);
   },
 
   async deleteClub(clubId: string) {
     await supabase.from('classes').delete().eq('club_id', clubId);
-    await supabase.from('class_recaps').delete().eq('club_id', clubId);
-    await supabase.from('profiles').update({ club_id: null, role: null }).eq('club_id', clubId);
-    
-    const { error } = await supabase
-      .from('clubs')
-      .delete()
-      .eq('id', clubId);
+    await supabase.from('class_recap').delete().eq('club_id', clubId);
+    await supabase.from('memberships').delete().eq('club_id', clubId);
+    const { error } = await supabase.from('clubs').delete().eq('id', clubId);
     if (error) throw error;
   },
 
   async deleteAccount(userId: string) {
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
+    await supabase.from('memberships').delete().eq('user_id', userId);
+    const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
     if (profileError) throw profileError;
     await supabase.auth.signOut();
   },
@@ -160,22 +173,26 @@ export const dataService = {
   // MEMBERS & DATA
   async getMembers(clubId: string): Promise<Member[]> {
     const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
+      .from('memberships')
+      .select('user_id, role, profiles(*)')
       .eq('club_id', clubId);
 
-    if (error) return [];
+    if (error || !data) return [];
 
-    return data.map(profile => ({
-      id: profile.id,
-      name: profile.username || 'Grappler',
-      rank: profile.rank || 'White',
-      stripes: profile.stripes || 0,
-      totalSessions: profile.total_sessions || 0,
-      joinDate: profile.created_at,
-      isPremium: profile.is_premium || false,
-      avatar_url: profile.avatar_url
-    }));
+    return data.map((m: any) => {
+      const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+      return {
+        id: m.user_id,
+        name: p?.username || 'Grappler',
+        rank: p?.rank || 'White',
+        stripes: p?.stripes || 0,
+        totalSessions: p?.total_sessions || 0,
+        joinDate: p?.created_at,
+        isPremium: p?.is_premium || false,
+        avatar_url: p?.avatar_url,
+        role: m.role
+      };
+    });
   },
 
   // CLASSES & SCHEDULING
@@ -198,10 +215,78 @@ export const dataService = {
     if (error) throw error;
   },
 
-  async bookClass(userId: string, classId: string): Promise<void> {
+  async updateClass(classId: string, classData: Partial<Class>): Promise<void> {
+    const { error } = await supabase
+      .from('classes')
+      .update(classData)
+      .eq('id', classId);
+    if (error) throw error;
+  },
+
+  async getBookingCount(classId: string, date: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('class_id', classId)
+      .eq('date', date);
+    
+    if (error) return 0;
+    return count || 0;
+  },
+
+  async getClassAttendees(classId: string, date: string): Promise<Member[]> {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('user_id, profiles(*)')
+      .eq('class_id', classId)
+      .eq('date', date);
+
+    if (error || !data) return [];
+    
+    return data.map((b: any) => {
+      const p = Array.isArray(b.profiles) ? b.profiles[0] : b.profiles;
+      return {
+        id: b.user_id,
+        name: p?.username || 'Grappler',
+        rank: p?.rank || 'White',
+        stripes: p?.stripes || 0,
+        totalSessions: p?.total_sessions || 0,
+        joinDate: p?.created_at,
+        isPremium: p?.is_premium || false,
+        avatar_url: p?.avatar_url
+      };
+    });
+  },
+
+  async bookClass(userId: string, classId: string, date: string): Promise<void> {
+    // 1. Check if already booked
+    const { data: existing } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('class_id', classId)
+      .eq('date', date)
+      .maybeSingle();
+
+    if (existing) throw new Error("Already booked for this session.");
+
+    // 2. Check capacity
+    const { data: classObj } = await supabase
+      .from('classes')
+      .select('capacity')
+      .eq('id', classId)
+      .single();
+
+    if (classObj && classObj.capacity) {
+      const count = await this.getBookingCount(classId, date);
+      if (count >= classObj.capacity) {
+        throw new Error("FULL"); // Custom signal for full class
+      }
+    }
+
     const { error } = await supabase
       .from('bookings')
-      .insert([{ user_id: userId, class_id: classId, date: new Date().toISOString() }]);
+      .insert([{ user_id: userId, class_id: classId, date }]);
     if (error) throw error;
   },
 
@@ -221,7 +306,7 @@ export const dataService = {
   // RECAPS
   async getRecaps(clubId: string): Promise<ClassRecap[]> {
     const { data, error } = await supabase
-      .from('class_recaps')
+      .from('class_recap')
       .select('*')
       .eq('club_id', clubId)
       .order('date', { ascending: false });
@@ -241,7 +326,7 @@ export const dataService = {
 
   async saveRecap(clubId: string, recap: Omit<ClassRecap, 'id' | 'date'>): Promise<void> {
     const { error } = await supabase
-      .from('class_recaps')
+      .from('class_recap')
       .insert([{
         club_id: clubId,
         class_name: recap.className,

@@ -2,22 +2,40 @@
 import React, { useState } from 'react';
 import { Member, SportType, UserRole } from '../types';
 import { SPORT_RANKS } from '../constants';
+import { dataService } from '../services/dataService';
 
 interface MemberListProps {
   members: Member[];
   sport: SportType;
   role: UserRole;
+  clubId?: string;
   onRefresh: () => void;
 }
 
-const MemberList: React.FC<MemberListProps> = ({ members, sport, role, onRefresh }) => {
+const MemberList: React.FC<MemberListProps> = ({ members, sport, role, clubId, onRefresh }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRank, setFilterRank] = useState('All');
+  const [loading, setLoading] = useState<string | null>(null);
 
   const filteredMembers = members.filter(m => 
     (m.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (filterRank === 'All' || m.rank === filterRank)
   );
+
+  const handleRemove = async (memberId: string) => {
+    if (!clubId) return;
+    if (!confirm("Are you sure you want to remove this member from the academy?")) return;
+    
+    setLoading(memberId);
+    try {
+      await dataService.removeMember(clubId, memberId);
+      onRefresh();
+    } catch (err) {
+      alert("Failed to remove member.");
+    } finally {
+      setLoading(null);
+    }
+  };
 
   const getRankColor = (rank: string) => {
     const r = rank?.toLowerCase() || '';
@@ -71,38 +89,38 @@ const MemberList: React.FC<MemberListProps> = ({ members, sport, role, onRefresh
         {filteredMembers.length === 0 ? (
           <div className="text-center py-20 bg-slate-900/50 border border-dashed border-slate-800 rounded-3xl">
             <p className="text-slate-500 font-black italic uppercase text-xs">No grapplers found</p>
-            <p className="text-slate-600 text-[10px] mt-1">Share your club ID to get people on the mat!</p>
           </div>
         ) : (
           filteredMembers.map(m => (
             <div key={m.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between group hover:border-indigo-500/50 transition-all">
               <div className="flex items-center gap-4">
-                <div className="relative">
-                  {/* Fixed: avatar_url is now part of the Member interface, removed (m as any) cast */}
-                  <img src={m.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.name}`} className="w-12 h-12 rounded-full border-2 border-slate-800 bg-slate-800 object-cover" alt={m.name} />
-                  {m.isPremium && (
-                    <div className="absolute -top-1 -right-1 bg-amber-400 p-0.5 rounded-full">
-                      <svg className="w-3 h-3 text-slate-900" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                    </div>
-                  )}
-                </div>
+                <img src={m.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.name}`} className="w-12 h-12 rounded-full border-2 border-slate-800 bg-slate-800 object-cover" alt={m.name} />
                 <div>
                   <h4 className="font-bold text-slate-100 italic">{m.name}</h4>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${getRankColor(m.rank)}`}>
                       {m.rank}
                     </span>
-                    <span className="text-slate-500 text-[10px] font-bold uppercase">{m.totalSessions} classes</span>
+                    {(m as any).role === 'OWNER' && <span className="text-[8px] bg-indigo-500/10 text-indigo-400 px-1.5 rounded font-black uppercase">Coach</span>}
                   </div>
                 </div>
               </div>
               
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-4">
                 <div className="flex gap-0.5">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className={`w-1.5 h-4 rounded-sm border border-slate-950 ${i < m.stripes ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.3)]' : 'bg-slate-800'}`}></div>
+                    <div key={i} className={`w-1.5 h-4 rounded-sm border border-slate-950 ${i < m.stripes ? 'bg-white' : 'bg-slate-800'}`}></div>
                   ))}
                 </div>
+                {role === UserRole.OWNER && (m as any).role !== 'OWNER' && (
+                  <button 
+                    onClick={() => handleRemove(m.id)}
+                    disabled={!!loading}
+                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                  >
+                    {loading === m.id ? <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div> : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>}
+                  </button>
+                )}
               </div>
             </div>
           ))
