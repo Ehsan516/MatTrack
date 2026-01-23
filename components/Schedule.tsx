@@ -3,12 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { ClassRecap } from '../types';
 import { dataService } from '../services/dataService';
 
-const Schedule: React.FC<{ role: string }> = ({ role }) => {
+const Schedule: React.FC<{ role: string, clubId: string }> = ({ role, clubId }) => {
   const [view, setView] = useState<'upcoming' | 'history'>('upcoming');
   const [recaps, setRecaps] = useState<ClassRecap[]>([]);
   const [isAddingRecap, setIsAddingRecap] = useState(false);
+  const [loading, setLoading] = useState(false);
   
-  // Form State for New Recap
   const [newRecap, setNewRecap] = useState({
     className: '',
     instructor: 'Coach Marcus',
@@ -18,27 +18,35 @@ const Schedule: React.FC<{ role: string }> = ({ role }) => {
   });
 
   useEffect(() => {
-    loadRecaps();
-  }, []);
+    if (clubId) loadRecaps();
+  }, [clubId]);
 
   const loadRecaps = async () => {
-    const data = await dataService.getRecaps();
+    setLoading(true);
+    const data = await dataService.getRecaps(clubId);
     setRecaps(data);
+    setLoading(false);
   };
 
   const handleSaveRecap = async (e: React.FormEvent) => {
     e.preventDefault();
-    await dataService.saveRecap({
-      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
-      className: newRecap.className,
-      instructor: newRecap.instructor,
-      type: newRecap.type,
-      techniques: newRecap.techniques.split(',').map(t => t.trim()),
-      notes: newRecap.notes
-    });
-    setNewRecap({ className: '', instructor: 'Coach Marcus', type: 'Gi', techniques: '', notes: '' });
-    setIsAddingRecap(false);
-    loadRecaps();
+    setLoading(true);
+    try {
+      await dataService.saveRecap(clubId, {
+        className: newRecap.className,
+        instructor: newRecap.instructor,
+        type: newRecap.type,
+        techniques: newRecap.techniques.split(',').map(t => t.trim()),
+        notes: newRecap.notes
+      });
+      setNewRecap({ className: '', instructor: 'Coach Marcus', type: 'Gi', techniques: '', notes: '' });
+      setIsAddingRecap(false);
+      await loadRecaps();
+    } catch (err) {
+      alert("Failed to save recap. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const classes = [
@@ -78,12 +86,6 @@ const Schedule: React.FC<{ role: string }> = ({ role }) => {
                   <span className={`text-[9px] px-2 py-0.5 rounded-lg font-black uppercase ${c.type === 'Gi' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-slate-800 text-slate-400'}`}>{c.type}</span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1 font-medium">Instructor: {c.instructor}</p>
-                <div className="mt-3 flex items-center gap-4">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">8 / 20 booked</span>
-                  </div>
-                </div>
               </div>
               <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black py-2.5 px-6 rounded-xl transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-indigo-600/10 self-center">Book</button>
             </div>
@@ -104,42 +106,49 @@ const Schedule: React.FC<{ role: string }> = ({ role }) => {
             <form onSubmit={handleSaveRecap} className="bg-slate-900 border border-indigo-500/50 rounded-3xl p-6 space-y-4 shadow-xl shadow-indigo-500/5">
               <h3 className="text-white font-black italic uppercase text-sm tracking-widest">Add Class Recap</h3>
               <div className="grid grid-cols-2 gap-4">
-                <input required placeholder="Class Name (e.g. Fundamentals)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500" value={newRecap.className} onChange={e => setNewRecap({...newRecap, className: e.target.value})} />
+                <input required placeholder="Class Name" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500" value={newRecap.className} onChange={e => setNewRecap({...newRecap, className: e.target.value})} />
                 <select className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs outline-none" value={newRecap.type} onChange={e => setNewRecap({...newRecap, type: e.target.value as any})}>
                   <option value="Gi">Gi</option>
                   <option value="No-Gi">No-Gi</option>
                 </select>
               </div>
-              <input required placeholder="Techniques (comma separated: Armbar, Triangle...)" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500" value={newRecap.techniques} onChange={e => setNewRecap({...newRecap, techniques: e.target.value})} />
-              <textarea placeholder="Instructor notes or specific details..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500 h-24" value={newRecap.notes} onChange={e => setNewRecap({...newRecap, notes: e.target.value})} />
+              <input required placeholder="Techniques (comma separated)" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500" value={newRecap.techniques} onChange={e => setNewRecap({...newRecap, techniques: e.target.value})} />
+              <textarea placeholder="Notes..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-indigo-500 h-24" value={newRecap.notes} onChange={e => setNewRecap({...newRecap, notes: e.target.value})} />
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setIsAddingRecap(false)} className="flex-1 bg-slate-800 py-3 rounded-xl text-[10px] font-black uppercase text-slate-400">Cancel</button>
-                <button type="submit" className="flex-1 bg-indigo-600 py-3 rounded-xl text-[10px] font-black uppercase text-white shadow-lg shadow-indigo-600/20">Save to History</button>
+                <button type="submit" disabled={loading} className="flex-1 bg-indigo-600 py-3 rounded-xl text-[10px] font-black uppercase text-white shadow-lg shadow-indigo-600/20 disabled:opacity-50">
+                  {loading ? 'Saving...' : 'Save to Cloud'}
+                </button>
               </div>
             </form>
           )}
 
-          {recaps.map((recap) => (
-            <div key={recap.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-sm group hover:border-indigo-500/30 transition-all">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[9px] font-black bg-indigo-500 text-white px-2 py-0.5 rounded uppercase tracking-widest">{recap.type}</span>
-                    <span className="text-slate-500 text-[10px] font-bold uppercase">{recap.date}</span>
-                  </div>
-                  <h3 className="text-white font-black italic text-lg uppercase tracking-tight">{recap.className}</h3>
-                </div>
-                <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-indigo-400">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {recap.techniques.map((tech, idx) => (
-                  <span key={idx} className="bg-slate-800 border border-slate-700 text-indigo-300 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tight">{tech}</span>
-                ))}
-              </div>
+          {loading && !isAddingRecap ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
-          ))}
+          ) : recaps.length === 0 ? (
+            <div className="text-center py-12 text-slate-600 font-bold uppercase text-[10px] tracking-widest italic">No recaps found for this academy</div>
+          ) : (
+            recaps.map((recap) => (
+              <div key={recap.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-sm group hover:border-indigo-500/30 transition-all">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[9px] font-black bg-indigo-500 text-white px-2 py-0.5 rounded uppercase tracking-widest">{recap.type}</span>
+                      <span className="text-slate-500 text-[10px] font-bold uppercase">{recap.date}</span>
+                    </div>
+                    <h3 className="text-white font-black italic text-lg uppercase tracking-tight">{recap.className}</h3>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {recap.techniques.map((tech, idx) => (
+                    <span key={idx} className="bg-slate-800 border border-slate-700 text-indigo-300 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tight">{tech}</span>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>

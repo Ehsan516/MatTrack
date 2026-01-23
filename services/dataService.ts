@@ -1,48 +1,83 @@
 
 import { Member, ClassRecap, SportType } from '../types';
-import { MOCK_MEMBERS, MOCK_RECAPS } from '../constants';
-
-// This service is the "bridge". 
-// Currently it uses LocalStorage, but you can swap these functions for 
-// Supabase calls (e.g., supabase.from('members').select('*')) later.
+import { supabase } from './supabaseClient';
 
 export const dataService = {
   // MEMBERS
-  async getMembers(): Promise<Member[]> {
-    const saved = localStorage.getItem('mt_members');
-    if (saved) return JSON.parse(saved);
-    return MOCK_MEMBERS;
+  async getMembers(clubId: string): Promise<Member[]> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('club_id', clubId);
+
+    if (error) {
+      console.error('Error fetching members:', error);
+      return [];
+    }
+
+    return data.map(profile => ({
+      id: profile.id,
+      name: profile.username || 'Anonymous',
+      rank: profile.rank,
+      stripes: profile.stripes,
+      totalSessions: profile.total_sessions,
+      joinDate: profile.created_at,
+      isPremium: profile.is_premium
+    }));
   },
 
   async updateMemberRank(memberId: string, rank: string, stripes: number): Promise<void> {
-    const members = await this.getMembers();
-    const updated = members.map(m => m.id === memberId ? { ...m, rank, stripes } : m);
-    localStorage.setItem('mt_members', JSON.stringify(updated));
+    const { error } = await supabase
+      .from('profiles')
+      .update({ rank, stripes, updated_at: new Date() })
+      .eq('id', memberId);
+
+    if (error) throw error;
   },
 
-  // RECAPS (The "Training Log")
-  async getRecaps(): Promise<ClassRecap[]> {
-    const saved = localStorage.getItem('mt_recaps');
-    if (saved) return JSON.parse(saved);
-    return MOCK_RECAPS;
+  // RECAPS
+  async getRecaps(clubId: string): Promise<ClassRecap[]> {
+    const { data, error } = await supabase
+      .from('class_recaps')
+      .select('*')
+      .eq('club_id', clubId)
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching recaps:', error);
+      return [];
+    }
+
+    return data.map(item => ({
+      id: item.id,
+      date: new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+      className: item.class_name,
+      instructor: item.instructor,
+      type: item.type,
+      techniques: item.techniques,
+      notes: item.notes
+    }));
   },
 
-  async saveRecap(recap: Omit<ClassRecap, 'id'>): Promise<ClassRecap> {
-    const recaps = await this.getRecaps();
-    const newRecap = { ...recap, id: Math.random().toString(36).substr(2, 9) };
-    const updated = [newRecap, ...recaps];
-    localStorage.setItem('mt_recaps', JSON.stringify(updated));
-    return newRecap;
+  async saveRecap(clubId: string, recap: Omit<ClassRecap, 'id' | 'date'>): Promise<void> {
+    const { error } = await supabase
+      .from('class_recaps')
+      .insert([{
+        club_id: clubId,
+        class_name: recap.className,
+        instructor: recap.instructor,
+        type: recap.type,
+        techniques: recap.techniques,
+        notes: recap.notes,
+        date: new Date()
+      }]);
+
+    if (error) throw error;
   },
 
-  // CLUB STATS
-  async getAcademyStats() {
-    // This would be a complex SQL query in a real backend
-    const members = await this.getMembers();
-    return {
-      totalMembers: members.length,
-      activeThisWeek: Math.floor(members.length * 0.7),
-      revenue: members.filter(m => m.isPremium).length * 4.99
-    };
+  // AUTH HELPERS (Simulated for this demo, usually handled by supabase.auth)
+  async signIn(email: string) {
+    // In a real app: await supabase.auth.signInWithOtp({ email })
+    console.log('Signing in user:', email);
   }
 };

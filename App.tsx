@@ -40,7 +40,7 @@ const App: React.FC = () => {
       case 'dashboard': return <Dashboard role={role as UserRole} sport={sport} members={members} isPremium={isPremium || role === UserRole.OWNER} />;
       case 'members': return <MemberList members={members} sport={sport} role={role as UserRole} />;
       case 'coach': return <AICoach sport={sport} role={role as UserRole} isPremium={isPremium || role === UserRole.OWNER} onUpgrade={handleUpgrade} />;
-      case 'schedule': return <Schedule role={role as string} />;
+      case 'schedule': return <Schedule role={role as string} clubId={clubId || ''} />;
       case 'profile': return <Profile role={role as UserRole} isPremium={isPremium || role === UserRole.OWNER} onUpgrade={handleUpgrade} />;
       default: return <Dashboard role={role as UserRole} sport={sport} members={members} isPremium={isPremium || role === UserRole.OWNER} />;
     }
