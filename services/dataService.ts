@@ -1,5 +1,5 @@
 
-import { Member, ClassRecap, UserRole, SportType, Class, Booking, Club, ClubAlert, TrainingEvent } from '../types';
+import { Member, ClassRecap, UserRole, SportType, Class, Booking, Club, ClubAlert, TrainingEvent, MembershipTier } from '../types';
 import { supabase } from './supabaseClient';
 
 export const dataService = {
@@ -68,7 +68,7 @@ export const dataService = {
   async getUserMemberships(userId: string) {
     const { data, error } = await supabase
       .from('memberships')
-      .select('*, clubs(*)')
+      .select('*, clubs(*), membership_tiers(name)')
       .eq('user_id', userId);
     
     if (error) throw error;
@@ -135,7 +135,7 @@ export const dataService = {
   async getMembers(clubId: string): Promise<Member[]> {
     const { data, error } = await supabase
       .from('memberships')
-      .select('user_id, role, profiles(*)')
+      .select('user_id, role, tier_id, profiles(*), membership_tiers(name)')
       .eq('club_id', clubId);
 
     if (error || !data) return [];
@@ -152,6 +152,8 @@ export const dataService = {
         is_premium_member: p?.is_premium || false,
         avatar_url: p?.avatar_url,
         role: m.role,
+        tier_id: m.tier_id,
+        tier_name: m.membership_tiers?.name,
         lastAttendance: p?.updated_at
       };
     });
@@ -264,7 +266,6 @@ export const dataService = {
   },
 
   async postAlert(clubId: string, message: string, type: string) {
-    // Note: club_alerts table was not in your schema list but we keep it for now
     const { error } = await supabase
       .from('club_alerts')
       .insert([{ club_id: clubId, message, type }]);
@@ -282,7 +283,6 @@ export const dataService = {
   },
 
   async createEvent(clubId: string, eventData: Omit<TrainingEvent, 'id' | 'club_id'>) {
-    // Note: training_events table was not in your schema list but we keep it for now
     const { error } = await supabase
       .from('training_events')
       .insert([{ club_id: clubId, ...eventData }]);
@@ -330,5 +330,41 @@ export const dataService = {
       notes: r.notes,
       date: r.date
     }));
+  },
+
+  // Membership Tier Methods
+  async getMembershipTiers(clubId: string): Promise<MembershipTier[]> {
+    const { data, error } = await supabase
+      .from('membership_tiers')
+      .select('*')
+      .eq('club_id', clubId)
+      .order('price', { ascending: true });
+    
+    if (error) return [];
+    return data;
+  },
+
+  async createMembershipTier(clubId: string, tier: Omit<MembershipTier, 'id' | 'club_id'>) {
+    const { error } = await supabase
+      .from('membership_tiers')
+      .insert([{ club_id: clubId, ...tier }]);
+    if (error) throw error;
+  },
+
+  async deleteMembershipTier(tierId: string) {
+    const { error } = await supabase
+      .from('membership_tiers')
+      .delete()
+      .eq('id', tierId);
+    if (error) throw error;
+  },
+
+  async updateMemberTier(clubId: string, userId: string, tierId: string | null) {
+    const { error } = await supabase
+      .from('memberships')
+      .update({ tier_id: tierId })
+      .eq('club_id', clubId)
+      .eq('user_id', userId);
+    if (error) throw error;
   }
 };

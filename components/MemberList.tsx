@@ -101,7 +101,12 @@ const MemberList: React.FC<MemberListProps> = ({ members, sport, role, clubId, o
                     <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${getRankColor(m.rank)}`}>
                       {m.rank}
                     </span>
-                    {(m as any).role === 'OWNER' && <span className="text-[8px] bg-indigo-500/10 text-indigo-400 px-1.5 rounded font-black uppercase">Coach</span>}
+                    {m.tier_name && (
+                      <span className="text-[8px] bg-slate-800 text-indigo-400 px-1.5 py-0.5 rounded font-black uppercase border border-slate-700">
+                        {m.tier_name}
+                      </span>
+                    )}
+                    {m.role === 'OWNER' && <span className="text-[8px] bg-indigo-500/10 text-indigo-400 px-1.5 rounded font-black uppercase">Coach</span>}
                   </div>
                 </div>
               </div>
@@ -112,7 +117,7 @@ const MemberList: React.FC<MemberListProps> = ({ members, sport, role, clubId, o
                     <div key={i} className={`w-1.5 h-4 rounded-sm border border-slate-950 ${i < m.stripes ? 'bg-white' : 'bg-slate-800'}`}></div>
                   ))}
                 </div>
-                {role === UserRole.OWNER && (m as any).role !== 'OWNER' && (
+                {role === UserRole.OWNER && m.role !== 'OWNER' && (
                   <button 
                     onClick={() => handleRemove(m.id)}
                     disabled={!!loading}

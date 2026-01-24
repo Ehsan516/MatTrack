@@ -18,6 +18,14 @@ export interface User {
   is_premium_member: boolean;
 }
 
+export interface MembershipTier {
+  id: string;
+  club_id: string;
+  name: string;
+  price: number;
+  description?: string;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -29,6 +37,8 @@ export interface Member {
   is_premium_member: boolean;
   avatar_url?: string;
   role?: string;
+  tier_id?: string;
+  tier_name?: string;
 }
 
 export interface ClubAlert {
