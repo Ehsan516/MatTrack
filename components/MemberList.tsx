@@ -17,10 +17,6 @@ const MemberList: React.FC<MemberListProps> = ({ members, sport, role, clubId, o
   const [filterRank, setFilterRank] = useState('All');
   const [loading, setLoading] = useState<string | null>(null);
 
-  const filteredMembers = members.filter(m => 
-    (m.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (filterRank === 'All' || m.rank === filterRank)
-  );
 
   const handleRemove = async (memberId: string) => {
     if (!clubId) return;
@@ -46,6 +42,23 @@ const MemberList: React.FC<MemberListProps> = ({ members, sport, role, clubId, o
     if (r.includes('black')) return 'bg-slate-950 text-white border border-slate-800';
     return 'bg-indigo-600 text-white';
   };
+
+  const baseBelt = (rank: string) => {
+    const r = (rank || '').toLowerCase();
+    if (r.includes('black')) return 'Black';
+    if (r.includes('brown')) return 'Brown';
+    if (r.includes('purple')) return 'Purple';
+    if (r.includes('blue')) return 'Blue';
+    if (r.includes('white')) return 'White';
+    return rank || 'White';
+  };
+
+  const filteredMembers = members.filter(m =>
+    m.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (filterRank === 'All' || baseBelt(m.rank) === filterRank)
+  );
+
+
 
   return (
     <div className="space-y-6">
@@ -73,15 +86,17 @@ const MemberList: React.FC<MemberListProps> = ({ members, sport, role, clubId, o
           >
             All Members
           </button>
-          {SPORT_RANKS[sport].ranks.map(r => (
-            <button 
-              key={r}
-              onClick={() => setFilterRank(r)}
-              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${filterRank === r ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}
-            >
-              {r}
-            </button>
-          ))}
+{['White','Blue','Purple','Brown','Black'].map(r => (
+  <button
+    key={r}
+    onClick={() => setFilterRank(r)}
+    className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-all
+      ${filterRank === r ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}
+  >
+    {r}
+  </button>
+))}
+
         </div>
       </div>
 

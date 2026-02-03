@@ -14,8 +14,6 @@ export interface User {
   email: string;
   role?: UserRole | 'ADMIN';
   clubId?: string;
-  is_premium_owner: boolean;
-  is_premium_member: boolean;
 }
 
 export interface Member {
@@ -26,7 +24,6 @@ export interface Member {
   lastAttendance?: string;
   totalSessions: number;
   joinDate: string;
-  is_premium_member: boolean;
   avatar_url?: string;
   role?: string;
 }
@@ -34,28 +31,23 @@ export interface Member {
 export interface ClubAlert {
   id: string;
   club_id: string;
-  message: string;
-  type: 'urgent' | 'info' | 'delay';
+  created_by: string;
+  title: string;
+  body?: string | null;
   created_at: string;
 }
 
 export interface TrainingEvent {
   id: string;
   club_id: string;
+  created_by: string;
   title: string;
-  event_date: string;
-  prep_start_date: string;
-  target_sessions: number;
+  start_at: string;
+  end_at?: string | null;
+  notes?: string | null;
+  created_at: string;
 }
 
-export interface JournalEntry {
-  id: string;
-  user_id: string;
-  date: string;
-  title: string;
-  content: string;
-  mood: 'focused' | 'tired' | 'beast' | 'injured';
-}
 
 export interface Class {
   id: string;
@@ -73,8 +65,10 @@ export interface Booking {
   id: string;
   user_id: string;
   class_id: string;
-  date: string;
+  booking_date: string; // YYYY-MM-DD
+  created_at: string;
 }
+
 
 export interface RankDefinition {
   sport: SportType;

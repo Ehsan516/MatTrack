@@ -173,7 +173,6 @@ export const dataService = {
         stripes: p?.stripes || 0,
         totalSessions: p?.total_sessions || 0,
         joinDate: p?.created_at,
-        is_premium_member: p?.is_premium || false,
         avatar_url: p?.avatar_url,
         role: m.role,
         lastAttendance: p?.updated_at
@@ -232,95 +231,108 @@ export const dataService = {
     if (error) throw error;
   },
 
-  async getBookingCount(classId: string, date: string): Promise<number> {
-    const { count, error } = await supabase
-      .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('class_id', classId)
-      .eq('date', date);
-    
-    if (error) return 0;
-    return count || 0;
-  },
+async getBookingCount(classId: string, bookingDate: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('bookings')
+    .select('*', { count: 'exact', head: true })
+    .eq('class_id', classId)
+    .eq('booking_date', bookingDate);
 
-  async getClassAttendees(classId: string, date: string): Promise<Member[]> {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('user_id, profiles(*)')
-      .eq('class_id', classId)
-      .eq('date', date);
+  if (error) return 0;
+  return count || 0;
+},
 
-    if (error || !data) return [];
-    
-    return data.map((b: any) => {
-      const p = Array.isArray(b.profiles) ? b.profiles[0] : b.profiles;
-      return {
-        id: b.user_id,
-        name: p?.username || 'Grappler',
-        rank: p?.rank || 'White',
-        stripes: p?.stripes || 0,
-        totalSessions: p?.total_sessions || 0,
-        joinDate: p?.created_at,
-        is_premium_member: p?.is_premium || false,
-        avatar_url: p?.avatar_url
-      };
+async getClassAttendees(classId: string, bookingDate: string): Promise<Member[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('user_id, profiles(*)')
+    .eq('class_id', classId)
+    .eq('booking_date', bookingDate);
+
+  if (error || !data) return [];
+
+  return data.map((b: any) => {
+    const p = Array.isArray(b.profiles) ? b.profiles[0] : b.profiles;
+    return {
+      id: b.user_id,
+      name: p?.username || 'Grappler',
+      rank: p?.rank || 'White',
+      stripes: p?.stripes || 0,
+      totalSessions: p?.total_sessions || 0,
+      joinDate: p?.created_at,
+      avatar_url: p?.avatar_url
+    };
+  });
+},
+
+async bookClass(userId: string, classId: string, bookingDate: string): Promise<void> {
+  const { error } = await supabase
+    .from('bookings')
+    .insert([{ user_id: userId, class_id: classId, booking_date: bookingDate }]);
+  if (error) throw error;
+},
+
+async getNextBooking(userId: string): Promise<(Booking & { classes: Class }) | null> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*, classes(*)')
+    .eq('user_id', userId)
+    .order('booking_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) return null;
+  return data;
+},
+
+
+async postAlert(clubId: string, userId: string, title: string, body?: string) {
+  const { error } = await supabase
+    .from('club_alerts')
+    .insert([{ club_id: clubId, created_by: userId, title, body: body ?? null }]);
+  if (error) throw error;
+},
+
+
+async getAlerts(clubId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('club_alerts')
+    .select('*')
+    .eq('club_id', clubId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return data || [];
+},
+
+
+createEvent: async (clubId: string, userId: string, payload: {
+    title: string;
+    start_at: string;
+    end_at?: string;
+    notes?: string;
+  }) => {
+  const { error } = await supabase
+    .from('training_events')
+    .insert({
+      club_id: clubId,
+      created_by: userId,
+      ...payload
     });
+
+  if (error) throw error;
   },
 
-  async bookClass(userId: string, classId: string, date: string): Promise<void> {
-    const { error } = await supabase
-      .from('bookings')
-      .insert([{ user_id: userId, class_id: classId, date }]);
-    if (error) throw error;
-  },
+getEvents: async (clubId: string) => {
+  const { data, error } = await supabase
+    .from('training_events')
+    .select('*')
+    .eq('club_id', clubId)
+    .order('start_at', { ascending: true });
 
-  async getNextBooking(userId: string): Promise<(Booking & { classes: Class }) | null> {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*, classes(*)')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    
-    if (error) return null;
-    return data;
-  },
-
-  async postAlert(clubId: string, message: string, type: string) {
-    // Note: club_alerts table was not in your schema list but we keep it for now
-    const { error } = await supabase
-      .from('club_alerts')
-      .insert([{ club_id: clubId, message, type }]);
-    if (error) throw error;
-  },
-
-  async getAlerts(clubId: string): Promise<any[]> {
-    const { data, error } = await supabase
-      .from('club_alerts')
-      .select('*')
-      .eq('club_id', clubId)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    return data || [];
-  },
-
-  async createEvent(clubId: string, eventData: Omit<TrainingEvent, 'id' | 'club_id'>) {
-    // Note: training_events table was not in your schema list but we keep it for now
-    const { error } = await supabase
-      .from('training_events')
-      .insert([{ club_id: clubId, ...eventData }]);
-    if (error) throw error;
-  },
-
-  async getEvents(clubId: string): Promise<TrainingEvent[]> {
-    const { data, error } = await supabase
-      .from('training_events')
-      .select('*')
-      .eq('club_id', clubId)
-      .order('event_date', { ascending: true });
-    return data || [];
-  },
+  if (error) throw error;
+  return data;
+},
 
   async saveRecap(clubId: string, recapData: Omit<ClassRecap, 'id' | 'club_id' | 'date'>) {
     const { error } = await supabase

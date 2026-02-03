@@ -32,11 +32,33 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
   const rankDef = SPORT_RANKS[sport];
   const otherMembers = members.filter(m => m.id !== profileData?.id);
 
+  const beltPill = (rank: string) => {
+    const r = (rank || '').toLowerCase();
+    if (r.includes('white')) return 'bg-slate-100 text-slate-900';
+    if (r.includes('blue')) return 'bg-blue-600 text-white';
+    if (r.includes('purple')) return 'bg-purple-600 text-white';
+    if (r.includes('brown')) return 'bg-amber-900 text-white';
+    if (r.includes('black')) return 'bg-slate-950 text-white border border-slate-800';
+    return 'bg-indigo-600 text-white';
+  };
+
+const baseBelt = (rank: string) => {
+  const r = (rank || '').toLowerCase();
+  if (r.includes('black')) return 'Black';
+  if (r.includes('brown')) return 'Brown';
+  if (r.includes('purple')) return 'Purple';
+  if (r.includes('blue')) return 'Blue';
+  if (r.includes('white')) return 'White';
+  return rank || 'White';
+};
+
+
   const isActualOwner = role?.toString().toUpperCase() === 'OWNER';
   const displayName = isActualOwner ? `Coach ${username}` : username;
-  const subTitle = isActualOwner 
-    ? `Founder — ${clubName}` 
-    : `${profileData?.rank || 'White'} ${rankDef.labelType} • Student`;
+  const subTitle = isActualOwner
+    ? `Founder — ${clubName}`
+    : `${baseBelt(profileData?.rank || 'White')} ${rankDef.labelType} • Student`;
+
 
   const handleUpdateStripes = async (count: number) => {
     try {
@@ -109,6 +131,7 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
     }
   };
 
+
   const handleSignOut = async () => {
     setLoading(true);
     try { await dataService.signOut(); }
@@ -131,25 +154,40 @@ const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileDa
         <h2 className="text-xl font-black italic tracking-tight mt-4 uppercase text-white">{displayName}</h2>
         <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 text-center px-4">{subTitle}</p>
         
-        {/* Stripes Selector */}
-        <div className="flex flex-col items-center gap-4 mt-6 w-full max-w-xs">
-          <button onClick={() => setActiveModal('rank')} className="w-full py-4 rounded-2xl bg-slate-900 border border-slate-800 text-[11px] font-black uppercase tracking-widest text-indigo-400 hover:border-indigo-500 transition-all">
-            Update {rankDef.labelType}
-          </button>
-          
-          <div className="flex items-center gap-3 bg-slate-900/50 p-4 rounded-3xl border border-slate-800 w-full justify-between">
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Stripes</span>
-            <div className="flex gap-1.5">
-              {[0, 1, 2, 3, 4].map(i => (
-                <button 
-                  key={i} 
-                  onClick={() => handleUpdateStripes(i)}
-                  className={`w-4 h-8 rounded border-2 border-slate-950 transition-all ${i > 0 && i <= (profileData?.stripes || 0) ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.3)]' : 'bg-slate-800 opacity-30'}`}
-                ></button>
-              ))}
-            </div>
-          </div>
-        </div>
+{/* Belt + Stripes */}
+<div className="flex flex-col items-center gap-4 mt-6 w-full max-w-xs">
+  {/* Belt display */}
+  <div className={`w-full py-4 rounded-2xl text-center text-[12px] font-black uppercase tracking-widest ${beltPill(profileData?.rank)}`}>
+    {baseBelt(profileData?.rank)} {rankDef.labelType}
+  </div>
+
+  {/* Stripes */}
+  <div className="flex items-center gap-3 bg-slate-900/50 p-4 rounded-3xl border border-slate-800 w-full justify-between">
+    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Stripes</span>
+    <div className="flex gap-1.5">
+      {[0, 1, 2, 3, 4].map(i => (
+        <button 
+          key={i} 
+          onClick={() => handleUpdateStripes(i)}
+          className={`w-4 h-8 rounded border-2 border-slate-950 transition-all ${
+            i > 0 && i <= (profileData?.stripes || 0)
+              ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.3)]'
+              : 'bg-slate-800 opacity-30'
+          }`}
+        />
+      ))}
+    </div>
+  </div>
+
+  {/* Update belt button below stripes */}
+  <button
+    onClick={() => setActiveModal('rank')}
+    className="w-full py-4 rounded-2xl bg-slate-900 border border-slate-800 text-[11px] font-black uppercase tracking-widest text-indigo-400 hover:border-indigo-500 transition-all"
+  >
+    Update {rankDef.labelType}
+  </button>
+</div>
+
       </div>
 
       {/* Main Settings List */}

@@ -8,10 +8,9 @@ interface DashboardProps {
   role: UserRole;
   sport: SportType;
   members: Member[];
-  isPremium: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members, isPremium }) => {
+const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) => {
   const [weeklyTarget, setWeeklyTarget] = useState<number>(3);
   const [attendanceCount, setAttendanceCount] = useState<number>(0);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
