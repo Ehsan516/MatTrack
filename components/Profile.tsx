@@ -7,8 +7,6 @@ import { supabase } from '../services/supabaseClient';
 
 interface ProfileProps {
   role: UserRole;
-  isPremium: boolean;
-  onUpgrade: () => void;
   profileData: any;
   onRefreshProfile: () => void;
   members: Member[];
@@ -16,7 +14,7 @@ interface ProfileProps {
   onClubAction: () => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ role, isPremium, onUpgrade, profileData, onRefreshProfile, members, club, onClubAction }) => {
+const Profile: React.FC<ProfileProps> = ({ role, profileData, onRefreshProfile, members, club, onClubAction }) => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
