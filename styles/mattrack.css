@@ -542,7 +542,9 @@
   .tab.active {
     background: var(--sand-200);
     box-shadow: var(--inset-shadow);
+    color: var(--blue-vivid);
   }
+  .tab.inactive { color: var(--ink-300); }
   .tab-icon-wrap {
     width: 28px; height: 28px;
     display: flex; align-items: center; justify-content: center;
