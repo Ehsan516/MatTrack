@@ -7,7 +7,6 @@ import {
   Booking,
   Club,
   ClubAlert,
-  TrainingEvent,
 } from "../types";
 import { supabase } from "./supabaseClient";
 
@@ -383,36 +382,6 @@ async joinClub(userId: string, customClubId: string) {
 
     if (error) throw error;
     return data || [];
-  },
-
-  createEvent: async (
-    clubId: string,
-    userId: string,
-    payload: {
-      title: string;
-      start_at: string;
-      end_at?: string;
-      notes?: string;
-    }
-  ) => {
-    const { error } = await supabase.from("training_events").insert({
-      club_id: clubId,
-      created_by: userId,
-      ...payload,
-    });
-
-    if (error) throw error;
-  },
-
-  getEvents: async (clubId: string) => {
-    const { data, error } = await supabase
-      .from("training_events")
-      .select("*")
-      .eq("club_id", clubId)
-      .order("start_at", { ascending: true });
-
-    if (error) throw error;
-    return data;
   },
 
   async saveRecap(clubId: string, recapData: Omit<ClassRecap, "id" | "club_id" | "date">) {

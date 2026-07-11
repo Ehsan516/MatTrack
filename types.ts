@@ -37,18 +37,6 @@ export interface ClubAlert {
   created_at: string;
 }
 
-export interface TrainingEvent {
-  id: string;
-  club_id: string;
-  created_by: string;
-  title: string;
-  start_at: string;
-  end_at?: string | null;
-  notes?: string | null;
-  created_at: string;
-}
-
-
 export interface Class {
   id: string;
   club_id: string;
