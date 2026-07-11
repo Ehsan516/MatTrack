@@ -26,7 +26,6 @@ const Profile: React.FC<ProfileProps> = ({
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Modals
   const [activeModal, setActiveModal] = useState<'security' | 'notifications' | 'transfer' | 'delete_club' | 'delete_account' | 'rank' | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
   const [notifEnabled, setNotifEnabled] = useState(true);
@@ -136,7 +135,6 @@ const Profile: React.FC<ProfileProps> = ({
     if (!selectedNewOwner) return;
     setLoading(true);
     try {
-      // Server-side RPC handles auth + atomic transfer
       await dataService.transferClubOwnership(club.id, selectedNewOwner);
       alert("Ownership transferred. You are now a team member.");
       onClubAction();
@@ -166,8 +164,6 @@ const Profile: React.FC<ProfileProps> = ({
       alert('Enter your password to confirm.');
       return;
     }
-    // Client-side password verification isn't available with Supabase.
-    // We still require a password input as a UX guardrail, but the real checks happen server-side.
     setLoading(true);
     try {
       await dataService.deleteAccount();
@@ -204,7 +200,6 @@ const Profile: React.FC<ProfileProps> = ({
         <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--ink-900)', marginTop: 14 }}>{displayName}</h2>
         <p className="section-lbl" style={{ padding: 0, marginTop: 2, textAlign: 'center' }}>{subTitle}</p>
 
-        {/* Belt + Stripes */}
         <div className="col gap-3" style={{ marginTop: 20, width: '100%', maxWidth: 300 }}>
           <div className={`belt ${beltClass(profileData?.rank)}`} style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: '0.75rem' }}>
             {baseBelt(profileData?.rank)} {rankDef.labelType}
@@ -231,9 +226,6 @@ const Profile: React.FC<ProfileProps> = ({
         </div>
       </div>
 
-      {/* Membership Plan Card removed with premium tier feature */}
-
-      {/* Main Settings List */}
       <div className="card">
         <div className="card-header">Settings</div>
         <div>
@@ -260,7 +252,6 @@ const Profile: React.FC<ProfileProps> = ({
         </div>
       </div>
 
-      {/* Danger Zone */}
       <div className="card" style={{ borderColor: 'rgba(220,38,38,0.15)' }}>
         <div className="card-header" style={{ color: 'var(--red-vivid)' }}>Danger Zone</div>
         <div>
@@ -310,7 +301,6 @@ const Profile: React.FC<ProfileProps> = ({
 
       <button onClick={handleSignOut} className="btn btn-ghost btn-full">Sign Out</button>
 
-      {/* OVERLAY MODALS */}
       {activeModal === 'rank' && (
         <div className="overlay">
           <div className="modal" style={{ maxWidth: 380 }}>

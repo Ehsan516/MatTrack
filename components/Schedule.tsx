@@ -8,12 +8,10 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
   const [recaps, setRecaps] = useState<ClassRecap[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Modals/Forms
   const [isAddingClass, setIsAddingClass] = useState(false);
   const [selectedClassAttendance, setSelectedClassAttendance] = useState<{ class: Class, attendees: Member[] } | null>(null);
   const [isAddingRecap, setIsAddingRecap] = useState<Class | null>(null);
 
-  // Attendance Filter
   const [attendeeSearch, setAttendeeSearch] = useState('');
   const [attendeeRankFilter, setAttendeeRankFilter] = useState('All');
 
@@ -32,13 +30,9 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
     notes: ''
   });
 
-  // =========================
-  // Day filter + booking logic
-  // =========================
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 
   const getTodayName = () => {
-    // JS: Sunday=0 ... Saturday=6
     const jsDay = new Date().getDay();
     const map = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
     return map[jsDay] as typeof DAYS[number];
@@ -46,7 +40,7 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
 
   const nextDateForDay = (dayName: typeof DAYS[number]) => {
     const now = new Date();
-    const todayJs = now.getDay(); // 0..6
+    const todayJs = now.getDay();
     const week = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
     const targetJs = week.indexOf(dayName as any);
 
@@ -73,7 +67,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
     return dt;
   };
 
-  // Normalize degrees etc. -> base belt for filtering (Black 2nd degree still counts as Black)
   const baseBelt = (rank: string) => {
     const r = (rank || '').toLowerCase();
     if (r.includes('black')) return 'Black';
@@ -119,7 +112,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
     setRecaps(data);
   };
 
-  // Refresh booking counts whenever selected day or class list changes
   useEffect(() => {
     if (!clubId) return;
     refreshCountsForSelectedDay();
@@ -150,7 +142,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
       setBookingCounts(map);
     } catch (e) {
       console.error(e);
-      // Don't block UI if counts fail
     } finally {
       setCountsLoading(false);
     }
@@ -186,10 +177,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
     }
   };
 
-  // Booking behaviour:
-  // - defaults to booking the next occurrence of the class day
-  // - members can't book after class start time
-  // - members can't book if full (owner not blocked by capacity)
   const handleBook = async (c: Class) => {
     const owner = role?.toString().toUpperCase() === 'OWNER';
 
@@ -200,7 +187,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
     const start = buildDateTime(dayDate, c.start_time);
 
     if (!owner) {
-      // capacity check
       const count = bookingCounts[c.id] ?? 0;
       const capacity = c.capacity ?? null;
       if (capacity && count >= capacity) {
@@ -208,7 +194,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
         return;
       }
 
-      // prevent booking if class has started/ended
       if (now >= start) {
         alert("This class has already started/ended — you can’t book it.");
         return;
@@ -225,7 +210,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
   };
 
   const showAttendance = async (c: Class) => {
-    // show roster for the next occurrence of that class (same day logic)
     const dayDate = nextDateForDay(c.day as any);
     const dateISO = toISODate(dayDate);
 
@@ -252,13 +236,11 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
     }
   };
 
-  // Filter: only show up to Black in UI, and normalize degrees -> Black
   const filteredAttendees = selectedClassAttendance?.attendees.filter(a =>
     a.name.toLowerCase().includes(attendeeSearch.toLowerCase()) &&
     (attendeeRankFilter === 'All' || baseBelt(a.rank) === attendeeRankFilter)
   ) || [];
 
-  // Day-filtered view
   const visibleClasses = classes.filter(c => c.day === selectedDay);
   const selectedDayDate = nextDateForDay(selectedDay);
 
@@ -386,7 +368,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
         </div>
       )}
 
-      {/* MODAL: Class Attendance */}
       {selectedClassAttendance && (
         <div className="overlay">
           <div className="modal" style={{ maxWidth: 380 }}>
@@ -444,7 +425,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
         </div>
       )}
 
-      {/* MODAL: Create Class */}
       {isAddingClass && (
         <div className="overlay">
           <form onSubmit={handleCreateClass} className="modal" style={{ maxWidth: 400 }}>
@@ -494,7 +474,6 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
         </div>
       )}
 
-      {/* MODAL: Add Recap */}
       {isAddingRecap && (
         <div className="overlay">
           <div className="modal" style={{ maxWidth: 400 }}>

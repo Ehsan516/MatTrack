@@ -75,8 +75,8 @@ const App: React.FC = () => {
   const initializeApp = async () => {
     setLoading(true);
     try {
-      await loadProfile();       // Profile first (name setup UX)
-      await loadMemberships();   // Then membership/club role
+      await loadProfile();
+      await loadMemberships();
     } catch (err) {
       console.error("Initialization error", err);
     } finally {
@@ -360,7 +360,6 @@ const App: React.FC = () => {
         <NavItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon="user" label="Profile" />
       </nav>
 
-      {/* SETUP MODAL: Name entry */}
       {showSetupModal && (
         <div className="overlay">
           <div className="modal">
@@ -393,7 +392,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* JOIN/CREATE MODAL */}
       {showJoinModal && (
         <div className="overlay">
           <div className="modal" style={{ maxWidth: 400 }}>

@@ -54,10 +54,6 @@
     --tap-min: 44px;
   }
 
-  /* Dark appearance follows the system setting automatically. Values below
-     swap the same variable names so every component adapts with no markup
-     changes. Shadows lean darker/softer since raised-card lighting reads
-     differently on black. */
   @media (prefers-color-scheme: dark) {
     :root {
       --sand-50:  #1c1b19;
@@ -106,7 +102,6 @@
     color: var(--ink-900);
   }
 
-  /* Respect the OS "reduce motion" preference across every transition/animation. */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.001ms !important;
@@ -129,7 +124,6 @@
     overflow: hidden;
   }
 
-  /* Consistent 16pt (min) side margin, widened automatically for notches. */
   .page {
     padding-left: var(--page-x);
     padding-right: var(--page-x-r);
@@ -321,8 +315,6 @@
     outline-offset: 2px;
   }
 
-  /* Blue = primary/constructive action, red = destructive — used consistently
-     everywhere so the color itself communicates intent (HIG semantic color). */
   .btn-primary {
     background: linear-gradient(180deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
     color: #fff;
@@ -373,7 +365,6 @@
   }
   .btn-icon:active { box-shadow: var(--inset-shadow); background: var(--sand-200); }
 
-  /* Text-only link button, still meets the tap-target minimum via padding. */
   .link-btn {
     display: inline-flex;
     align-items: center;
@@ -658,7 +649,6 @@
   @media (prefers-color-scheme: dark) {
     .avatar { border-color: rgba(255,255,255,0.1); }
   }
-  /* Trigger button wrapping an avatar image (e.g. header profile shortcut). */
   .avatar-btn {
     width: var(--tap-min); height: var(--tap-min);
     padding: 0;

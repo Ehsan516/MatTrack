@@ -78,7 +78,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
 
   return (
     <>
-      {/* High Priority Alert Banner */}
       {activeAlert && (
         <div className="banner">
           <div className="banner-icon">
@@ -95,7 +94,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
         </div>
       )}
 
-      {/* Hero Welcome */}
       <section className="hero">
         <div className="relative">
           <p className="hero-eyebrow">Oss, {role === UserRole.OWNER ? 'Coach' : 'Champ'}</p>
@@ -107,7 +105,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
         </div>
       </section>
 
-      {/* Owner broadcast composer */}
       {role === UserRole.OWNER && (
         <section className="card card-p col gap-3">
           <h3 className="section-lbl" style={{ padding: 0, color: 'var(--blue-vivid)' }}>Broadcast to Team</h3>
@@ -126,7 +123,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
         </section>
       )}
 
-      {/* Your Next Class */}
       {role === UserRole.MEMBER && nextBooking && (
         <section className="card card-p">
           <div className="row sb mt-1" style={{ marginBottom: 16 }}>
@@ -146,7 +142,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
         </section>
       )}
 
-      {/* Main Stats Row */}
       <div className="g2">
         <div className="card card-p relative" style={{ gridColumn: '1 / -1' }}>
           <div className="row sb" style={{ marginBottom: 20 }}>
@@ -182,7 +177,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
             </div>
           </div>
 
-          {/* Goal Edit Overlay */}
           {isEditingTarget && (
             <div className="col" style={{ position: 'absolute', inset: 0, background: 'var(--sand-50)', borderRadius: 'var(--radius-lg)', padding: 24, zIndex: 5 }}>
               <h4 style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--ink-900)' }}>Adjust Goal</h4>
@@ -202,7 +196,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
           )}
         </div>
 
-        {/* Quick Stats Grid */}
         <div className="stat">
           <p className="stat-val">{lifetimeSessions}</p>
           <p className="stat-lbl">Lifetime Mats</p>
