@@ -124,23 +124,36 @@ const App: React.FC = () => {
     }
   };
 
-  const loadProfile = async () => {
-    if (!userId) return;
-    try {
-      const profile = await dataService.getProfile(userId);
-      setProfileData(profile);
+const loadProfile = async () => {
+  if (!userId) return;
 
-      const isNew =
-        !profile?.username ||
-        profile.username === 'New Owner' ||
-        profile.username === 'New Member' ||
-        profile.username === 'Grappler';
+  try {
+    let profile = await dataService.getProfile(userId);
 
-      setShowSetupModal(!!isNew);
-    } catch (err) {
-      console.error("Error loading profile", err);
+    if (!profile) {
+      await dataService.updateProfile(userId, {
+        username: 'Grappler',
+        rank: 'White',
+        stripes: 0,
+        role: 'MEMBER'
+      });
+
+      profile = await dataService.getProfile(userId);
     }
-  };
+
+    setProfileData(profile);
+
+    const isNew =
+      !profile?.username ||
+      profile.username === 'New Owner' ||
+      profile.username === 'New Member' ||
+      profile.username === 'Grappler';
+
+    setShowSetupModal(!!isNew);
+  } catch (err) {
+    console.error("Error loading profile", err);
+  }
+};
 
   const handleAuthComplete = () => {
     checkUser();
@@ -248,14 +261,15 @@ const App: React.FC = () => {
         return <Schedule userId={userId} role={role as UserRole} clubId={activeClub?.id || ''} sport={sport} />
       case 'profile':
         return (
-          <Profile
-            role={role as UserRole}
-            profileData={profileData}
-            onRefreshProfile={loadProfile}
-            members={members}
-            club={activeClub}
-            onClubAction={loadMemberships}
-          />
+        <Profile
+          userId={userId}
+          role={role as UserRole}
+          profileData={profileData}
+          onRefreshProfile={loadProfile}
+          members={members}
+          club={activeClub}
+          onClubAction={loadMemberships}
+        />
         );
       default:
         return null;

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { UserRole, SportType, Member } from '../types';
 import { SPORT_RANKS } from '../constants';
@@ -6,6 +5,7 @@ import { dataService } from '../services/dataService';
 import { supabase } from '../services/supabaseClient';
 
 interface ProfileProps {
+  userId: string;
   role: UserRole;
   profileData: any;
   onRefreshProfile: () => void;
@@ -14,7 +14,15 @@ interface ProfileProps {
   onClubAction: () => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ role, profileData, onRefreshProfile, members, club, onClubAction }) => {
+const Profile: React.FC<ProfileProps> = ({
+  userId,
+  role,
+  profileData,
+  onRefreshProfile,
+  members,
+  club,
+  onClubAction
+}) => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -58,20 +66,68 @@ const baseBelt = (rank: string) => {
     : `${baseBelt(profileData?.rank || 'White')} ${rankDef.labelType} • Student`;
 
 
-  const handleUpdateStripes = async (count: number) => {
-    try {
-      await dataService.updateProfile(profileData.id, { stripes: count });
-      onRefreshProfile();
-    } catch (err) { alert("Failed to update stripes."); }
-  };
+const handleUpdateStripes = async (count: number) => {
+  try {
+    await dataService.updateProfile(userId, { stripes: count });
+    await onRefreshProfile();
+  } catch (err: any) {
+    console.error('Failed to update stripes:', err);
+    alert(err?.message || 'Failed to update stripes.');
+  }
+};
 
-  const handleUpdateRank = async (rank: string) => {
-    try {
-      await dataService.updateProfile(profileData.id, { rank });
-      setActiveModal(null);
-      onRefreshProfile();
-    } catch (err) { alert("Failed to update rank."); }
-  };
+const handleUpdateRank = async (rank: string) => {
+  try {
+    await dataService.updateProfile(userId, { rank });
+    setActiveModal(null);
+    await onRefreshProfile();
+  } catch (err: any) {
+    console.error('Failed to update rank:', err);
+    alert(err?.message || 'Failed to update rank.');
+  }
+};
+
+const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    alert('Please choose an image file.');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    await dataService.updateProfile(userId, {
+      avatar_url: data.publicUrl
+    });
+
+    await onRefreshProfile();
+  } catch (err: any) {
+    console.error('Avatar upload failed:', err);
+    alert(err?.message || 'Failed to upload profile picture.');
+  } finally {
+    setLoading(false);
+    e.target.value = '';
+  }
+};
 
   const handleTransferOwnership = async () => {
     if (!club) return;
@@ -147,7 +203,7 @@ const baseBelt = (rank: string) => {
           <button onClick={() => fileInputRef.current?.click()} className="absolute -bottom-1 -right-1 bg-indigo-600 p-2.5 rounded-2xl border-2 border-slate-950 shadow-lg hover:scale-110 active:scale-90 transition-all">
              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           </button>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {/* avatar logic already in previous version */}} />
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
         </div>
         <h2 className="text-xl font-black italic tracking-tight mt-4 uppercase text-white">{displayName}</h2>
         <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 text-center px-4">{subTitle}</p>
