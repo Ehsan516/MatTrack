@@ -1,8 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
-import { AuthStep, UserRole, SportType } from '../types';
+import React, { useState } from 'react';
+import { AuthStep } from '../types';
 import { dataService } from '../services/dataService';
-import { supabase } from '../services/supabaseClient';
 
 interface AuthProps {
   onComplete: () => void;
@@ -68,36 +66,36 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
       case 'LOGIN':
       case 'SIGNUP':
         return (
-          <div className="w-full max-w-sm space-y-6 animate-in fade-in zoom-in-95 duration-300">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-black tracking-tight text-white italic uppercase leading-none">
+          <div className="col gap-4" style={{ width: '100%' }}>
+            <div className="col gap-2" style={{ textAlign: 'center' }}>
+              <h1 className="modal-title" style={{ fontSize: '1.5rem' }}>
                 {step === 'LOGIN' ? 'Welcome Back' : 'Join the Mat'}
               </h1>
-              {error && <p className="text-red-400 text-[10px] font-black bg-red-500/10 p-2 rounded-lg uppercase tracking-widest">{error}</p>}
+              {error && <p className="badge red" style={{ justifyContent: 'center', padding: '8px 12px', whiteSpace: 'normal' }}>{error}</p>}
             </div>
 
-            <div className="space-y-4">
+            <div className="col gap-3">
               {step === 'SIGNUP' && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Username</label>
-                  <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="jiujitsu_joe" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all text-white" />
+                <div>
+                  <label className="field-label">Username</label>
+                  <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="jiujitsu_joe" className="field" />
                 </div>
               )}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="grappler@email.com" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all text-white" />
+              <div>
+                <label className="field-label">Email</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="grappler@email.com" className="field" />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-600 transition-all text-white" />
+              <div>
+                <label className="field-label">Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="field" />
               </div>
             </div>
 
-            <button onClick={handleAuth} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black py-5 rounded-[24px] shadow-xl transition-all active:scale-95 uppercase tracking-widest text-[11px]">
+            <button onClick={handleAuth} disabled={loading} className="btn btn-primary btn-full">
               {loading ? 'Processing...' : step === 'LOGIN' ? 'Sign In' : 'Create Account'}
             </button>
 
-            <button onClick={() => setStep(step === 'LOGIN' ? 'SIGNUP' : 'LOGIN')} className="w-full text-[10px] font-black text-slate-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">
+            <button onClick={() => setStep(step === 'LOGIN' ? 'SIGNUP' : 'LOGIN')} className="link-btn" style={{ alignSelf: 'center' }}>
               {step === 'LOGIN' ? 'No account? Create profile' : 'Already on MatTrack? Log In'}
             </button>
           </div>
@@ -105,37 +103,39 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
 
       case 'VERIFY':
         return (
-          <div className="w-full max-w-sm space-y-8 animate-in zoom-in-95 duration-300">
-            <div className="text-center space-y-4">
-               <div className="w-16 h-16 bg-indigo-600/10 rounded-2xl flex items-center justify-center mx-auto text-indigo-500 shadow-inner">
-                 <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v10a2 2 0 002 2z"/></svg>
-               </div>
-               <div className="space-y-1">
-                <h1 className="text-3xl font-black text-white italic uppercase tracking-tight">Check Inbox</h1>
-                <p className="text-slate-500 text-xs">Enter the 6-digit code sent to <span className="text-indigo-400 font-bold">{email}</span></p>
-               </div>
-               {error && <p className="text-red-400 text-[10px] font-black bg-red-500/10 p-2 rounded-lg uppercase tracking-widest text-center">{error}</p>}
+          <div className="col gap-5" style={{ width: '100%' }}>
+            <div className="col gap-3" style={{ textAlign: 'center', alignItems: 'center' }}>
+              <div className="modal-icon blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v10a2 2 0 002 2z"/></svg>
+              </div>
+              <div>
+                <h1 className="modal-title">Check Inbox</h1>
+                <p className="modal-desc" style={{ marginBottom: 0, marginTop: 4 }}>Enter the 6-digit code sent to <span style={{ color: 'var(--blue-vivid)', fontWeight: 700 }}>{email}</span></p>
+              </div>
+              {error && <p className="badge red" style={{ justifyContent: 'center', padding: '8px 12px' }}>{error}</p>}
             </div>
 
-            <div className="space-y-6 text-center">
-              <input 
-                type="text" 
+            <div className="col gap-4" style={{ textAlign: 'center' }}>
+              <input
+                type="text"
+                inputMode="numeric"
                 maxLength={6}
-                value={verificationCode} 
-                onChange={e => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))} 
-                placeholder="000000" 
-                className="w-full bg-slate-900 border border-slate-800 rounded-[32px] p-6 text-center text-5xl font-black tracking-[0.2em] text-white outline-none focus:ring-4 focus:ring-indigo-600/50 transition-all shadow-2xl" 
+                value={verificationCode}
+                onChange={e => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="000000"
+                className="field"
+                style={{ textAlign: 'center', fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.3em', height: 76, borderRadius: 24 }}
               />
-              
-              <button onClick={handleVerify} disabled={loading || verificationCode.length < 6} className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black py-5 rounded-[24px] shadow-xl transition-all active:scale-95 uppercase tracking-widest text-[11px]">
+
+              <button onClick={handleVerify} disabled={loading || verificationCode.length < 6} className="btn btn-primary btn-full">
                 {loading ? 'Verifying...' : 'Verify Email'}
               </button>
 
-              <div className="space-y-2">
-                <button onClick={handleResend} disabled={resending} className="w-full text-[10px] font-black text-slate-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">
+              <div className="col">
+                <button onClick={handleResend} disabled={resending} className="link-btn">
                   {resending ? 'Resending Code...' : "Didn't get a code? Resend"}
                 </button>
-                <button onClick={() => setStep('SIGNUP')} className="w-full text-[10px] font-black text-slate-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">
+                <button onClick={() => setStep('SIGNUP')} className="link-btn">
                   Back to Signup
                 </button>
               </div>
@@ -148,15 +148,15 @@ const Auth: React.FC<AuthProps> = ({ onComplete }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-indigo-600/10 rounded-full blur-[160px]"></div>
-      <div className="mb-12 flex flex-col items-center relative z-10">
-        <div className="w-16 h-16 bg-indigo-600 rounded-[22px] flex items-center justify-center mb-4 shadow-2xl rotate-3">
-          <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M2 3h20"/><path d="M5 3v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3"/></svg>
+    <div className="shell" style={{ alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
+      <div style={{ position: 'absolute', top: '-20%', left: '-20%', width: '60%', height: '60%', background: 'var(--blue-light)', borderRadius: '50%', filter: 'blur(120px)', pointerEvents: 'none' }} />
+      <div className="col" style={{ alignItems: 'center', marginBottom: 40, position: 'relative' }}>
+        <div style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--blue-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, boxShadow: '0 8px 24px rgba(37,99,235,0.35)' }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M2 3h20"/><path d="M5 3v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3"/></svg>
         </div>
-        <span className="text-3xl font-black tracking-tighter text-white italic uppercase">MATTRACK</span>
+        <span className="nav-wordmark" style={{ fontSize: '1.5rem' }}>Mat<span>Track</span></span>
       </div>
-      <div className="relative z-10 w-full flex justify-center">{renderStep()}</div>
+      <div className="relative" style={{ width: '100%', maxWidth: 340, display: 'flex', justifyContent: 'center' }}>{renderStep()}</div>
     </div>
   );
 };
