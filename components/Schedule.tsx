@@ -186,7 +186,7 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
     }
   };
 
-  // ✅ Updated booking behaviour:
+  // Booking behaviour:
   // - defaults to booking the next occurrence of the class day
   // - members can't book after class start time
   // - members can't book if full (owner not blocked by capacity)
@@ -261,71 +261,51 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
   // Day-filtered view
   const visibleClasses = classes.filter(c => c.day === selectedDay);
   const selectedDayDate = nextDateForDay(selectedDay);
-  const selectedDayISO = toISODate(selectedDayDate);
 
   return (
-    <div className="space-y-6 pb-24">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+    <>
+      <div className="row sb">
         <div>
-          <h2 className="text-2xl font-black italic tracking-tight text-white uppercase leading-none">
-            {view === 'upcoming' ? "Academy Schedule" : "Technique Log"}
+          <h2 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--ink-900)', letterSpacing: '-0.3px' }}>
+            {view === 'upcoming' ? 'Academy Schedule' : 'Technique Log'}
           </h2>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-2">
-            {view === 'upcoming' ? `MASTER SESSIONS: ${classes.length}` : 'ACADEMY KNOWLEDGE BASE'}
+          <p className="section-lbl" style={{ padding: 0, marginTop: 2 }}>
+            {view === 'upcoming' ? `${classes.length} sessions` : 'Knowledge base'}
           </p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-1 rounded-2xl flex gap-1 shadow-inner w-full sm:w-auto">
-          <button
-            onClick={() => setView('upcoming')}
-            className={`flex-1 sm:flex-none px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'upcoming' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            Timetable
-          </button>
-          <button
-            onClick={() => setView('recaps')}
-            className={`flex-1 sm:flex-none px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'recaps' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            Recaps
-          </button>
+        <div className="seg" style={{ width: 'auto' }}>
+          <button onClick={() => setView('upcoming')} className={`seg-btn ${view === 'upcoming' ? 'active' : 'inactive'}`}>Timetable</button>
+          <button onClick={() => setView('recaps')} className={`seg-btn ${view === 'recaps' ? 'active' : 'inactive'}`}>Recaps</button>
         </div>
       </div>
 
       {view === 'upcoming' && (
-        <div className="space-y-4 animate-in fade-in duration-300">
-          {/* ✅ Day filter bar */}
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {DAYS.map(d => (
-              <button
-                key={d}
-                onClick={() => setSelectedDay(d)}
-                className={`whitespace-nowrap px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all
-                  ${selectedDay === d ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}
-              >
-                {d.slice(0, 3)}
-              </button>
-            ))}
-            {countsLoading && (
-              <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest ml-2 self-center">
-                Updating…
-              </span>
-            )}
+        <div className="col gap-3">
+          <div className="day-scroll">
+            {DAYS.map(d => {
+              const active = selectedDay === d;
+              return (
+                <button key={d} onClick={() => setSelectedDay(d)} className={`day-chip ${active ? 'active' : 'inactive'}`}>
+                  <span className="day-chip-name">{d.slice(0, 3)}</span>
+                  <span className="day-chip-num">{nextDateForDay(d).getDate()}</span>
+                </button>
+              );
+            })}
+            {countsLoading && <span className="section-lbl" style={{ alignSelf: 'center', padding: 0 }}>Updating…</span>}
           </div>
 
           {isOwner && (
             <button
               onClick={() => setIsAddingClass(true)}
-              className="w-full bg-slate-900 border-2 border-dashed border-slate-800 py-6 rounded-3xl text-slate-500 font-black uppercase tracking-widest text-xs hover:border-indigo-500 hover:text-indigo-400 transition-all shadow-inner"
+              className="btn btn-full"
+              style={{ background: 'var(--sand-100)', border: '2px dashed rgba(0,0,0,0.12)', color: 'var(--ink-400)', height: 56 }}
             >
               + Create New Class
             </button>
           )}
 
           {visibleClasses.length === 0 ? (
-            <div className="text-center py-20 bg-slate-900/50 border border-dashed border-slate-800 rounded-[40px]">
-              <p className="text-slate-600 font-black italic uppercase text-xs tracking-widest">
-                No classes scheduled for {selectedDay}
-              </p>
-            </div>
+            <div className="empty-state">No classes scheduled for {selectedDay}</div>
           ) : (
             visibleClasses.map((c) => {
               const count = bookingCounts[c.id] ?? 0;
@@ -337,64 +317,38 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
               const disableReserve = !isOwner && (isFull || started);
 
               return (
-                <div key={c.id} className="bg-slate-900 border border-slate-800 rounded-[32px] p-6 flex flex-col gap-6 shadow-sm group relative">
-                  <div className="flex justify-between items-start">
-                    <div className="flex gap-4">
-                      <div className="w-16 h-16 bg-slate-950 rounded-2xl flex flex-col items-center justify-center border border-slate-800 shadow-inner">
-                        <span className="text-[10px] font-black text-indigo-400 leading-none mb-1">{c.start_time}</span>
-                        <div className="w-1 h-2 bg-slate-800 rounded-full my-0.5"></div>
-                        <span className="text-[10px] font-black text-slate-500 leading-none">{c.end_time}</span>
+                <div key={c.id} className="class-card">
+                  <div className={`class-accent ${c.type === 'No-Gi' ? 'nogi' : ''}`} />
+                  <div className="class-body">
+                    <div className="row sb">
+                      <div className="row gap-3">
+                        <div className="card-inset col" style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 800, color: 'var(--blue-vivid)', lineHeight: 1.4 }}>{c.start_time}</span>
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--ink-300)' }}>{c.end_time}</span>
+                        </div>
+                        <div>
+                          <h3 className="class-name">{c.name}</h3>
+                          <p className="class-meta">{c.day} • Coach {c.instructor} • {c.type}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-lg font-black text-white italic uppercase tracking-tight">{c.name}</h3>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
-                          {c.day} • Coach {c.instructor} • {c.type}
-                        </p>
+                      <div className="col gap-2" style={{ alignItems: 'flex-end' }}>
+                        <span className="badge">{capacityLabel}</span>
+                        <button onClick={() => showAttendance(c)} className="link-btn">Who's Training?</button>
+                        {isOwner && <button onClick={() => handleDeleteClass(c.id)} className="link-btn danger">Delete</button>}
                       </div>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-2">
-                      {/* ✅ Count / capacity indicator */}
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
-                        {capacityLabel}
-                      </div>
-
-                      <button
-                        onClick={() => showAttendance(c)}
-                        className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1.5 rounded-xl hover:bg-indigo-500/20 transition-all border border-indigo-500/20"
-                      >
-                        Who's Training?
-                      </button>
-
-                      {isOwner && (
-                        <button
-                          onClick={() => handleDeleteClass(c.id)}
-                          className="text-[9px] font-black text-red-500/60 uppercase hover:text-red-500 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      )}
                     </div>
                   </div>
-
-                  <div className="flex gap-3">
+                  <div className="class-footer">
                     <button
                       disabled={disableReserve}
                       onClick={() => handleBook(c)}
-                      className={`flex-1 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all
-                        ${disableReserve ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 text-white'}`}
+                      className="btn btn-primary flex-1"
                       title={!isOwner && isFull ? 'Class is full' : (!isOwner && started ? 'Class has started/ended' : '')}
                     >
                       Reserve Spot
                     </button>
-
                     {isOwner && (
-                      <button
-                        onClick={() => setIsAddingRecap(c)}
-                        className="bg-slate-800 text-slate-300 font-black py-4 px-6 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-colors"
-                      >
-                        Log Recap
-                      </button>
+                      <button onClick={() => setIsAddingRecap(c)} className="btn btn-ghost">Log Recap</button>
                     )}
                   </div>
                 </div>
@@ -405,25 +359,27 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
       )}
 
       {view === 'recaps' && (
-        <div className="space-y-4 animate-in fade-in">
+        <div className="col gap-3">
           {recaps.length === 0 ? (
-            <div className="text-center py-20 bg-slate-900/50 border border-dashed border-slate-800 rounded-[40px]">
-              <p className="text-slate-600 font-black italic uppercase text-xs tracking-widest">No training notes found yet</p>
-            </div>
+            <div className="empty-state">No training notes found yet</div>
           ) : (
             recaps.map(r => (
-              <div key={r.id} className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 space-y-4">
+              <div key={r.id} className="card card-p col gap-3">
                 <div>
-                  <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest">{r.date} • {r.type}</p>
-                  <h3 className="text-xl font-black italic text-white uppercase tracking-tight">{r.className}</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Instructor: {r.instructor}</p>
+                  <p className="section-lbl" style={{ padding: 0, color: 'var(--blue-vivid)' }}>{r.date} • {r.type}</p>
+                  <h3 style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--ink-900)', marginTop: 2 }}>{r.className}</h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--ink-400)', marginTop: 2 }}>Instructor: {r.instructor}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="row gap-2" style={{ flexWrap: 'wrap' }}>
                   {r.techniques.map((t, i) => (
-                    <span key={i} className="bg-slate-950 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">{t}</span>
+                    <span key={i} className="badge">{t}</span>
                   ))}
                 </div>
-                {r.notes && <p className="text-sm text-slate-400 italic border-t border-slate-800 pt-4 leading-relaxed font-medium">"{r.notes}"</p>}
+                {r.notes && (
+                  <p style={{ fontSize: '0.875rem', color: 'var(--ink-500)', fontStyle: 'italic', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 12 }}>
+                    "{r.notes}"
+                  </p>
+                )}
               </div>
             ))
           )}
@@ -432,55 +388,57 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
 
       {/* MODAL: Class Attendance */}
       {selectedClassAttendance && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6 relative max-h-[80vh] overflow-hidden flex flex-col">
-            <button onClick={() => setSelectedClassAttendance(null)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-
-            <div className="space-y-1">
-              <h3 className="text-xl font-black text-white italic uppercase">{selectedClassAttendance.class.name}</h3>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                Session Roster • {selectedClassAttendance.attendees.length} Grapplers
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <input
-                placeholder="Search roster..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600"
-                value={attendeeSearch}
-                onChange={e => setAttendeeSearch(e.target.value)}
-              />
-
-              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                <button onClick={() => setAttendeeRankFilter('All')} className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${attendeeRankFilter === 'All' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>All</button>
-                {['White', 'Blue', 'Purple', 'Brown', 'Black'].map(r => (
-                  <button
-                    key={r}
-                    onClick={() => setAttendeeRankFilter(r)}
-                    className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${attendeeRankFilter === r ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500'}`}
-                  >
-                    {r}
-                  </button>
-                ))}
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-body col gap-4" style={{ paddingTop: 20, maxHeight: '80vh' }}>
+              <div className="row sb">
+                <div>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--ink-900)' }}>{selectedClassAttendance.class.name}</h3>
+                  <p className="section-lbl" style={{ padding: 0, marginTop: 2 }}>{selectedClassAttendance.attendees.length} grapplers</p>
+                </div>
+                <button onClick={() => setSelectedClassAttendance(null)} className="btn-icon" style={{ background: 'none', border: 'none', boxShadow: 'none' }}>
+                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
               </div>
-            </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-              {filteredAttendees.length === 0 ? (
-                <div className="py-12 text-center text-slate-600 font-black italic uppercase text-[10px] tracking-widest">No matching grapplers</div>
-              ) : (
-                filteredAttendees.map(m => (
-                  <div key={m.id} className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
-                    <img src={m.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.name}`} className="w-10 h-10 rounded-full bg-slate-800" alt="" />
-                    <div>
-                      <h4 className="text-sm font-bold text-white uppercase italic">{m.name}</h4>
-                      <p className="text-[9px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">{m.rank}</p>
-                    </div>
+              <div className="col gap-3">
+                <div className="search-wrap">
+                  <span className="search-icon">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  </span>
+                  <input
+                    placeholder="Search roster..."
+                    className="field"
+                    value={attendeeSearch}
+                    onChange={e => setAttendeeSearch(e.target.value)}
+                  />
+                </div>
+
+                <div className="scroll-x">
+                  <button onClick={() => setAttendeeRankFilter('All')} className={`chip ${attendeeRankFilter === 'All' ? 'active' : ''}`}>All</button>
+                  {['White', 'Blue', 'Purple', 'Brown', 'Black'].map(r => (
+                    <button key={r} onClick={() => setAttendeeRankFilter(r)} className={`chip ${attendeeRankFilter === r ? 'active' : ''}`}>{r}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="col" style={{ overflowY: 'auto', gap: 0 }}>
+                {filteredAttendees.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '32px 16px' }}>No matching grapplers</div>
+                ) : (
+                  <div className="card">
+                    {filteredAttendees.map(m => (
+                      <div key={m.id} className="member-row">
+                        <img src={m.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.name}`} className="avatar" style={{ width: 40, height: 40 }} alt="" />
+                        <div>
+                          <h4 className="member-name">{m.name}</h4>
+                          <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--blue-vivid)', marginTop: 1, textTransform: 'uppercase' }}>{m.rank}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -488,47 +446,49 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
 
       {/* MODAL: Create Class */}
       {isAddingClass && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-          <form onSubmit={handleCreateClass} className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
-            <h3 className="text-xl font-black text-white italic uppercase text-center">Setup New Session</h3>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Class Name</label>
-                <input required placeholder="e.g. Fundamental Gi" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.name} onChange={e => setNewClass({ ...newClass, name: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Instructor</label>
-                <input required placeholder="Coach Name" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.instructor} onChange={e => setNewClass({ ...newClass, instructor: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Day</label>
-                  <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold appearance-none outline-none focus:ring-2 focus:ring-indigo-600" value={newClass.day} onChange={e => setNewClass({ ...newClass, day: e.target.value })}>
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
+        <div className="overlay">
+          <form onSubmit={handleCreateClass} className="modal" style={{ maxWidth: 400 }}>
+            <div className="modal-body col gap-4" style={{ paddingTop: 20 }}>
+              <h3 className="modal-title" style={{ textAlign: 'center', fontSize: '1.0625rem' }}>Setup New Session</h3>
+              <div className="col gap-3">
+                <div>
+                  <label className="field-label">Class Name</label>
+                  <input required placeholder="e.g. Fundamental Gi" className="field" value={newClass.name} onChange={e => setNewClass({ ...newClass, name: e.target.value })} />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Type</label>
-                  <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold appearance-none outline-none focus:ring-2 focus:ring-indigo-600" value={newClass.type} onChange={e => setNewClass({ ...newClass, type: e.target.value as any })}>
-                    <option value="Gi">Gi</option>
-                    <option value="No-Gi">No-Gi</option>
-                  </select>
+                <div>
+                  <label className="field-label">Instructor</label>
+                  <input required placeholder="Coach Name" className="field" value={newClass.instructor} onChange={e => setNewClass({ ...newClass, instructor: e.target.value })} />
+                </div>
+                <div className="g2">
+                  <div>
+                    <label className="field-label">Day</label>
+                    <select className="field" value={newClass.day} onChange={e => setNewClass({ ...newClass, day: e.target.value })}>
+                      {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label">Type</label>
+                    <select className="field" value={newClass.type} onChange={e => setNewClass({ ...newClass, type: e.target.value as any })}>
+                      <option value="Gi">Gi</option>
+                      <option value="No-Gi">No-Gi</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="g2">
+                  <div>
+                    <label className="field-label">Start Time</label>
+                    <input type="time" className="field" value={newClass.start_time} onChange={e => setNewClass({ ...newClass, start_time: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="field-label">End Time</label>
+                    <input type="time" className="field" value={newClass.end_time} onChange={e => setNewClass({ ...newClass, end_time: e.target.value })} />
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
-                  <input type="time" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.start_time} onChange={e => setNewClass({ ...newClass, start_time: e.target.value })} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">End Time</label>
-                  <input type="time" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newClass.end_time} onChange={e => setNewClass({ ...newClass, end_time: e.target.value })} />
-                </div>
+              <div className="row gap-2">
+                <button type="button" onClick={() => setIsAddingClass(false)} className="btn btn-ghost flex-1">Cancel</button>
+                <button type="submit" className="btn btn-primary flex-1">Launch Class</button>
               </div>
-            </div>
-            <div className="flex gap-4">
-              <button type="button" onClick={() => setIsAddingClass(false)} className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase text-xs hover:bg-slate-700 transition-colors">Cancel</button>
-              <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">Launch Class</button>
             </div>
           </form>
         </div>
@@ -536,27 +496,29 @@ const Schedule: React.FC<{ role: UserRole, clubId: string, userId: string, sport
 
       {/* MODAL: Add Recap */}
       {isAddingRecap && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
-            <h3 className="text-xl font-black text-white italic uppercase text-center">Log Today's Lesson</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Techniques (Comma Separated)</label>
-                <input placeholder="e.g. Scissor Sweep, Cross Choke" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={newRecap.techniques} onChange={e => setNewRecap({ ...newRecap, techniques: e.target.value })} />
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 400 }}>
+            <div className="modal-body col gap-4" style={{ paddingTop: 20 }}>
+              <h3 className="modal-title" style={{ textAlign: 'center', fontSize: '1.0625rem' }}>Log Today's Lesson</h3>
+              <div className="col gap-3">
+                <div>
+                  <label className="field-label">Techniques (Comma Separated)</label>
+                  <input placeholder="e.g. Scissor Sweep, Cross Choke" className="field" value={newRecap.techniques} onChange={e => setNewRecap({ ...newRecap, techniques: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Notes / Key Details</label>
+                  <textarea placeholder="Don't forget the underhook..." className="field" style={{ height: 100, paddingTop: 12, resize: 'none' }} value={newRecap.notes} onChange={e => setNewRecap({ ...newRecap, notes: e.target.value })} />
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Notes / Key Details</label>
-                <textarea placeholder="Don't forget the underhook..." className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white h-32" value={newRecap.notes} onChange={e => setNewRecap({ ...newRecap, notes: e.target.value })} />
+              <div className="row gap-2">
+                <button onClick={() => setIsAddingRecap(null)} className="btn btn-ghost flex-1">Discard</button>
+                <button onClick={handleSaveRecap} className="btn btn-primary flex-1">Post Knowledge</button>
               </div>
-            </div>
-            <div className="flex gap-4">
-              <button onClick={() => setIsAddingRecap(null)} className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase text-xs">Discard</button>
-              <button onClick={handleSaveRecap} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs">Post Knowledge</button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
