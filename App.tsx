@@ -124,36 +124,36 @@ const App: React.FC = () => {
     }
   };
 
-const loadProfile = async () => {
-  if (!userId) return;
+  const loadProfile = async () => {
+    if (!userId) return;
 
-  try {
-    let profile = await dataService.getProfile(userId);
+    try {
+      let profile = await dataService.getProfile(userId);
 
-    if (!profile) {
-      await dataService.updateProfile(userId, {
-        username: 'Grappler',
-        rank: 'White',
-        stripes: 0,
-        role: 'MEMBER'
-      });
+      if (!profile) {
+        await dataService.updateProfile(userId, {
+          username: 'Grappler',
+          rank: 'White',
+          stripes: 0,
+          role: 'MEMBER'
+        });
 
-      profile = await dataService.getProfile(userId);
+        profile = await dataService.getProfile(userId);
+      }
+
+      setProfileData(profile);
+
+      const isNew =
+        !profile?.username ||
+        profile.username === 'New Owner' ||
+        profile.username === 'New Member' ||
+        profile.username === 'Grappler';
+
+      setShowSetupModal(!!isNew);
+    } catch (err) {
+      console.error("Error loading profile", err);
     }
-
-    setProfileData(profile);
-
-    const isNew =
-      !profile?.username ||
-      profile.username === 'New Owner' ||
-      profile.username === 'New Member' ||
-      profile.username === 'Grappler';
-
-    setShowSetupModal(!!isNew);
-  } catch (err) {
-    console.error("Error loading profile", err);
-  }
-};
+  };
 
   const handleAuthComplete = () => {
     checkUser();
@@ -214,9 +214,9 @@ const loadProfile = async () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center space-y-6">
-        <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin shadow-lg"></div>
-        <p className="text-slate-500 font-black uppercase tracking-widest text-xs animate-pulse">Entering Dojo...</p>
+      <div className="shell" style={{ alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <div className="spinner" />
+        <p className="section-lbl">Entering Dojo…</p>
       </div>
     );
   }
@@ -232,20 +232,17 @@ const loadProfile = async () => {
 
     if (noClubJoined) {
       return (
-        <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 animate-in zoom-in-95">
-          <div className="w-24 h-24 bg-indigo-600/10 rounded-[40px] flex items-center justify-center text-indigo-500 shadow-xl border border-indigo-500/20">
-            <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <div className="col" style={{ alignItems: 'center', textAlign: 'center', gap: 24, padding: '64px 8px' }}>
+          <div className="modal-icon blue" style={{ width: 88, height: 88, borderRadius: 28 }}>
+            <svg className="w-10 h-10" width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
             </svg>
           </div>
-          <div className="max-w-xs space-y-2">
-            <h2 className="text-3xl font-black italic uppercase text-white leading-none tracking-tight">No Academy Joined</h2>
-            <p className="text-slate-500 text-sm">Join an existing team or launch your own academy to start tracking your progress.</p>
+          <div className="col gap-2" style={{ maxWidth: 260 }}>
+            <h2 className="modal-title">No Academy Joined</h2>
+            <p className="modal-desc" style={{ marginBottom: 0 }}>Join an existing team or launch your own academy to start tracking your progress.</p>
           </div>
-          <button
-            onClick={() => setShowJoinModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 px-12 rounded-[24px] shadow-2xl shadow-indigo-600/30 transition-all active:scale-95 uppercase tracking-widest text-[11px]"
-          >
+          <button onClick={() => setShowJoinModal(true)} className="btn btn-primary">
             Join or Create Academy
           </button>
         </div>
@@ -280,25 +277,26 @@ const loadProfile = async () => {
     profileData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData?.username || 'Grappler'}`;
 
   return (
-    <div className="min-h-screen bg-slate-950 pb-24 text-slate-100 flex flex-col">
-      <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 p-4 flex justify-between items-center">
-        <div className="flex items-center gap-2 relative">
+    <div className="shell">
+      <header className="nav">
+        <div className="relative">
           <button
             onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
-            className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+            className="row gap-2"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', minHeight: 44 }}
           >
-            <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center shadow-lg">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--blue-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--btn-shadow)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
                 <path d="M2 3h20" />
                 <path d="M5 3v16a2 2 0 0 0 2 2h10" />
               </svg>
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-tight leading-none uppercase italic">MatTrack</span>
+            <div className="col">
+              <span className="nav-wordmark">Mat<span>Track</span></span>
               {activeClub && (
-                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                <span className="row gap-1" style={{ fontSize: '0.6875rem', fontWeight: 800, color: 'var(--blue-vivid)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {activeClub.custom_id}
-                  <svg className={`w-2 h-2 transition-transform ${isSwitcherOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ transition: 'transform 0.15s ease', transform: isSwitcherOpen ? 'rotate(180deg)' : 'none' }}>
                     <path d="M19 9l-7 7-7-7" />
                   </svg>
                 </span>
@@ -307,8 +305,8 @@ const loadProfile = async () => {
           </button>
 
           {isSwitcherOpen && (
-            <div className="absolute top-full left-0 mt-2 w-72 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 overflow-hidden animate-in fade-in zoom-in-95">
-              <div className="px-4 py-2 text-[9px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 flex justify-between">
+            <div className="dropdown" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: 288, zIndex: 60 }}>
+              <div className="dropdown-header">
                 <span>Academies</span>
                 <span>{memberships.length} ACTIVE</span>
               </div>
@@ -316,192 +314,156 @@ const loadProfile = async () => {
               {memberships.map((m) => {
                 const isActive = activeClub?.id === m.club_id;
                 return (
-                  <button
-                    key={m.id}
-                    onClick={() => handleSwitchClub(m)}
-                    className={`w-full px-4 py-4 flex items-center justify-between hover:bg-slate-800 transition-colors border-l-4 ${
-                      isActive ? 'bg-indigo-600/10 border-indigo-500' : 'border-transparent'
-                    }`}
-                  >
-                    <div className="flex flex-col text-left">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-black ${isActive ? 'text-indigo-400' : 'text-white'}`}>{m.clubs.name}</span>
-                        {isActive && <span className="text-[7px] bg-indigo-600 text-white px-1 py-0.5 rounded font-black uppercase">Active</span>}
-                      </div>
-                      <span className="text-[9px] text-slate-500 uppercase font-bold tracking-tight">{m.clubs.sport}</span>
+                  <button key={m.id} onClick={() => handleSwitchClub(m)} className={`dropdown-item ${isActive ? 'active' : ''}`}>
+                    <div className="col">
+                      <span className="row gap-2">
+                        <span style={{ fontSize: '0.875rem', fontWeight: 800, color: isActive ? 'var(--blue-vivid)' : 'var(--ink-900)' }}>{m.clubs.name}</span>
+                        {isActive && <span className="badge blue">Active</span>}
+                      </span>
+                      <span className="member-sub">{m.clubs.sport}</span>
                     </div>
                   </button>
                 );
               })}
 
-              <div className="border-t border-slate-800 mt-2 pt-2">
+              <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                 <button
-                  onClick={() => {
-                    setShowJoinModal(true);
-                    setIsSwitcherOpen(false);
-                  }}
-                  className="w-full px-4 py-3 text-left text-[11px] font-black text-indigo-400 hover:bg-indigo-600/10 flex items-center gap-2 uppercase tracking-widest transition-colors"
+                  onClick={() => { setShowJoinModal(true); setIsSwitcherOpen(false); }}
+                  className="dropdown-item"
+                  style={{ color: 'var(--blue-vivid)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
-                  <div className="w-5 h-5 bg-indigo-600/20 rounded flex items-center justify-center">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path d="M12 4v16m8-8H4" />
-                    </svg>
-                  </div>
-                  Join/Create Academy
+                  + Join/Create Academy
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        <button
-          onClick={() => setActiveTab('profile')}
-          className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity shadow-sm"
-        >
-          <img src={headerAvatarSrc} alt="profile" className="object-cover w-full h-full" />
+        <button onClick={() => setActiveTab('profile')} className="avatar-btn">
+          <img src={headerAvatarSrc} alt="profile" />
         </button>
       </header>
 
-      <main className="flex-1 w-full max-w-4xl mx-auto p-4 animate-in fade-in duration-500">
+      <main className="scroll-area">
         {renderContent()}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 safe-bottom">
-        <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-4">
-          <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon="grid" label="Home" />
-          <NavItem
-            active={activeTab === 'members'}
-            onClick={() => setActiveTab('members')}
-            icon="users"
-            label={role?.toString().toUpperCase() === 'OWNER' ? 'Roster' : 'Team'}
-          />
-          <NavItem active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} icon="calendar" label="Classes" />
-          <NavItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon="user" label="Profile" />
-        </div>
+      <nav className="tabbar">
+        <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon="grid" label="Home" />
+        <NavItem
+          active={activeTab === 'members'}
+          onClick={() => setActiveTab('members')}
+          icon="users"
+          label={role?.toString().toUpperCase() === 'OWNER' ? 'Roster' : 'Team'}
+        />
+        <NavItem active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} icon="calendar" label="Classes" />
+        <NavItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon="user" label="Profile" />
       </nav>
 
       {/* SETUP MODAL: Name entry */}
       {showSetupModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-sm p-10 rounded-[48px] shadow-2xl space-y-8 text-center">
-            <div className="w-20 h-20 bg-indigo-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl shadow-indigo-600/20 rotate-3">
-              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+        <div className="overlay">
+          <div className="modal">
+            <div className="modal-top">
+              <div className="modal-icon blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h3 className="modal-title">Identity Setup</h3>
+              <p style={{ fontSize: '0.75rem', color: 'var(--ink-500)', marginTop: 4 }}>How should the academy recognize you?</p>
             </div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-black italic uppercase text-white tracking-tight">Identity Setup</h3>
-              <p className="text-slate-500 text-xs font-medium">How should the academy recognize you?</p>
+            <div className="modal-body col gap-3">
+              <input
+                placeholder="Full Name (e.g. Joe Rogan)"
+                className="field"
+                style={{ textAlign: 'center' }}
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+              />
+              <button
+                onClick={handleUpdateName}
+                disabled={!newName.trim() || loading}
+                className="btn btn-primary btn-full"
+              >
+                {loading ? 'Saving...' : 'Set Identity'}
+              </button>
             </div>
-            <input
-              placeholder="Full Name (e.g. Joe Rogan)"
-              className="w-full bg-slate-950 border border-slate-800 p-5 rounded-3xl text-white font-black uppercase tracking-tight outline-none focus:ring-2 focus:ring-indigo-600 text-center"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-            />
-            <button
-              onClick={handleUpdateName}
-              disabled={!newName.trim() || loading}
-              className="w-full bg-indigo-600 py-5 rounded-3xl text-white font-black uppercase tracking-widest text-[11px] shadow-2xl active:scale-95 transition-all"
-            >
-              {loading ? 'Saving...' : 'Set Identity'}
-            </button>
           </div>
         </div>
       )}
 
       {/* JOIN/CREATE MODAL */}
       {showJoinModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-xl font-black italic text-white uppercase tracking-tight">Academy Hub</h3>
-              <button onClick={() => setShowJoinModal(false)} className="p-2 text-slate-500 hover:text-white">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 400 }}>
+            <div className="modal-body col gap-4" style={{ paddingTop: 20 }}>
+              <div className="row sb">
+                <h3 className="modal-title" style={{ fontSize: '1.0625rem' }}>Academy Hub</h3>
+                <button onClick={() => setShowJoinModal(false)} className="btn-icon" style={{ background: 'none', border: 'none', boxShadow: 'none' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {joinStep === 'SELECT' && (
+                <div className="col gap-3">
+                  <button onClick={() => setJoinStep('JOIN')} className="card card-p" style={{ textAlign: 'left', cursor: 'pointer', border: 'none' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--ink-900)' }}>Join a Team</h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--ink-400)', marginTop: 4 }}>Connect to your existing club using their ID.</p>
+                  </button>
+                  <button onClick={() => setJoinStep('CREATE')} className="card card-p" style={{ textAlign: 'left', cursor: 'pointer', border: 'none' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--ink-900)' }}>Launch Academy</h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--ink-400)', marginTop: 4 }}>Start your own academy and manage your roster.</p>
+                  </button>
+                </div>
+              )}
+
+              {joinStep === 'JOIN' && (
+                <div className="col gap-4">
+                  <div>
+                    <label className="field-label">Academy ID</label>
+                    <input
+                      placeholder="e.g. GRACIE-LDN"
+                      className="field"
+                      style={{ textAlign: 'center', fontSize: '1.375rem', fontWeight: 800, letterSpacing: '0.05em', color: 'var(--blue-vivid)', textTransform: 'uppercase', height: 60 }}
+                      value={joinClubId}
+                      onChange={e => setJoinClubId(e.target.value.toUpperCase())}
+                    />
+                  </div>
+                  <div className="row gap-2">
+                    <button onClick={() => setJoinStep('SELECT')} className="btn btn-ghost flex-1">Back</button>
+                    <button onClick={handleJoinOrCreate} disabled={loading || !joinClubId} className="btn btn-primary flex-1">Connect</button>
+                  </div>
+                </div>
+              )}
+
+              {joinStep === 'CREATE' && (
+                <div className="col gap-3">
+                  <div>
+                    <label className="field-label">Academy Name</label>
+                    <input placeholder="Gracie Jiu-Jitsu London" className="field" value={newClubName} onChange={e => setNewClubName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="field-label">Academy Custom ID</label>
+                    <input placeholder="GRACIE-LDN" className="field" style={{ fontFamily: "'DM Mono', monospace", color: 'var(--blue-vivid)' }} value={newClubCustomId} onChange={e => setNewClubCustomId(e.target.value.toUpperCase())} />
+                  </div>
+                  <div>
+                    <label className="field-label">Primary Sport</label>
+                    <select className="field" value={newClubSport} onChange={e => setNewClubSport(e.target.value as SportType)}>
+                      <option value="BJJ">Brazilian Jiu-Jitsu</option>
+                      <option value="No-Gi">No-Gi / Grappling</option>
+                      <option value="Judo">Judo</option>
+                      <option value="Wrestling">Wrestling</option>
+                      <option value="Karate">Karate</option>
+                    </select>
+                  </div>
+                  <div className="row gap-2" style={{ paddingTop: 8 }}>
+                    <button onClick={() => setJoinStep('SELECT')} className="btn btn-ghost flex-1">Back</button>
+                    <button onClick={handleJoinOrCreate} disabled={loading || !newClubName} className="btn btn-primary flex-1">Launch</button>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {joinStep === 'SELECT' && (
-              <div className="grid grid-cols-1 gap-4 py-4">
-                <button onClick={() => setJoinStep('JOIN')} className="p-8 bg-slate-950 border border-slate-800 rounded-[32px] text-left hover:border-indigo-600 transition-all group shadow-inner">
-                  <h4 className="text-lg font-black text-white italic uppercase">Join a Team</h4>
-                  <p className="text-slate-500 text-xs mt-1">Connect to your existing club using their ID.</p>
-                </button>
-                <button onClick={() => setJoinStep('CREATE')} className="p-8 bg-slate-950 border border-slate-800 rounded-[32px] text-left hover:border-indigo-600 transition-all group shadow-inner">
-                  <h4 className="text-lg font-black text-white italic uppercase">Launch Academy</h4>
-                  <p className="text-slate-500 text-xs mt-1">Start your own academy and manage your roster.</p>
-                </button>
-              </div>
-            )}
-
-            {joinStep === 'JOIN' && (
-              <div className="space-y-6">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Academy ID</label>
-                  <input
-                    placeholder="e.g. GRACIE-LDN"
-                    className="w-full bg-slate-950 border border-slate-800 p-5 rounded-3xl text-center text-3xl font-black tracking-widest text-indigo-400 uppercase outline-none"
-                    value={joinClubId}
-                    onChange={e => setJoinClubId(e.target.value.toUpperCase())}
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => setJoinStep('SELECT')} className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase text-xs">
-                    Back
-                  </button>
-                  <button onClick={handleJoinOrCreate} disabled={loading || !joinClubId} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg">
-                    Connect
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {joinStep === 'CREATE' && (
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Academy Name</label>
-                  <input
-                    placeholder="Gracie Jiu-Jitsu London"
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold"
-                    value={newClubName}
-                    onChange={e => setNewClubName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Academy Custom ID</label>
-                  <input
-                    placeholder="GRACIE-LDN"
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-indigo-400 font-mono text-sm"
-                    value={newClubCustomId}
-                    onChange={e => setNewClubCustomId(e.target.value.toUpperCase())}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Primary Sport</label>
-                  <select
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-black uppercase tracking-widest text-xs"
-                    value={newClubSport}
-                    onChange={e => setNewClubSport(e.target.value as SportType)}
-                  >
-                    <option value="BJJ">Brazilian Jiu-Jitsu</option>
-                    <option value="No-Gi">No-Gi / Grappling</option>
-                    <option value="Judo">Judo</option>
-                    <option value="Wrestling">Wrestling</option>
-                    <option value="Karate">Karate</option>
-                  </select>
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button onClick={() => setJoinStep('SELECT')} className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase text-xs">
-                    Back
-                  </button>
-                  <button onClick={handleJoinOrCreate} disabled={loading || !newClubName} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg">
-                    Launch
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -512,7 +474,7 @@ const loadProfile = async () => {
 const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: string; label: string }> = ({ active, onClick, icon, label }) => {
   const icons: any = {
     grid: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <rect x="3" y="3" width="7" height="7" rx="1" />
         <rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="14" y="14" width="7" height="7" rx="1" />
@@ -520,7 +482,7 @@ const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: string; la
       </svg>
     ),
     users: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -528,7 +490,7 @@ const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: string; la
       </svg>
     ),
     calendar: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
@@ -536,7 +498,7 @@ const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: string; la
       </svg>
     ),
     user: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />
       </svg>
@@ -544,9 +506,9 @@ const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: string; la
   };
 
   return (
-    <button onClick={onClick} className={`flex flex-col items-center justify-center flex-1 transition-all ${active ? 'text-indigo-400' : 'text-slate-500'}`}>
-      {icons[icon]}
-      <span className="text-[10px] mt-1 font-black uppercase tracking-widest">{label}</span>
+    <button onClick={onClick} className={`tab ${active ? 'active' : 'inactive'}`}>
+      <div className="tab-icon-wrap">{icons[icon]}</div>
+      <span className="tab-lbl">{label}</span>
     </button>
   );
 };
