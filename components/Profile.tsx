@@ -25,7 +25,7 @@ const Profile: React.FC<ProfileProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Modals
   const [activeModal, setActiveModal] = useState<'security' | 'notifications' | 'transfer' | 'delete_club' | 'delete_account' | 'rank' | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
@@ -38,26 +38,24 @@ const Profile: React.FC<ProfileProps> = ({
   const rankDef = SPORT_RANKS[sport];
   const otherMembers = members.filter(m => m.id !== profileData?.id);
 
-  const beltPill = (rank: string) => {
+  const beltClass = (rank: string) => {
     const r = (rank || '').toLowerCase();
-    if (r.includes('white')) return 'bg-slate-100 text-slate-900';
-    if (r.includes('blue')) return 'bg-blue-600 text-white';
-    if (r.includes('purple')) return 'bg-purple-600 text-white';
-    if (r.includes('brown')) return 'bg-amber-900 text-white';
-    if (r.includes('black')) return 'bg-slate-950 text-white border border-slate-800';
-    return 'bg-indigo-600 text-white';
+    if (r.includes('blue')) return 'belt-blue';
+    if (r.includes('purple')) return 'belt-purple';
+    if (r.includes('brown')) return 'belt-brown';
+    if (r.includes('black')) return 'belt-black';
+    return 'belt-white';
   };
 
-const baseBelt = (rank: string) => {
-  const r = (rank || '').toLowerCase();
-  if (r.includes('black')) return 'Black';
-  if (r.includes('brown')) return 'Brown';
-  if (r.includes('purple')) return 'Purple';
-  if (r.includes('blue')) return 'Blue';
-  if (r.includes('white')) return 'White';
-  return rank || 'White';
-};
-
+  const baseBelt = (rank: string) => {
+    const r = (rank || '').toLowerCase();
+    if (r.includes('black')) return 'Black';
+    if (r.includes('brown')) return 'Brown';
+    if (r.includes('purple')) return 'Purple';
+    if (r.includes('blue')) return 'Blue';
+    if (r.includes('white')) return 'White';
+    return rank || 'White';
+  };
 
   const isActualOwner = role?.toString().toUpperCase() === 'OWNER';
   const displayName = isActualOwner ? `Coach ${username}` : username;
@@ -65,69 +63,68 @@ const baseBelt = (rank: string) => {
     ? `Founder — ${clubName}`
     : `${baseBelt(profileData?.rank || 'White')} ${rankDef.labelType} • Student`;
 
+  const handleUpdateStripes = async (count: number) => {
+    try {
+      await dataService.updateProfile(userId, { stripes: count });
+      await onRefreshProfile();
+    } catch (err: any) {
+      console.error('Failed to update stripes:', err);
+      alert(err?.message || 'Failed to update stripes.');
+    }
+  };
 
-const handleUpdateStripes = async (count: number) => {
-  try {
-    await dataService.updateProfile(userId, { stripes: count });
-    await onRefreshProfile();
-  } catch (err: any) {
-    console.error('Failed to update stripes:', err);
-    alert(err?.message || 'Failed to update stripes.');
-  }
-};
+  const handleUpdateRank = async (rank: string) => {
+    try {
+      await dataService.updateProfile(userId, { rank });
+      setActiveModal(null);
+      await onRefreshProfile();
+    } catch (err: any) {
+      console.error('Failed to update rank:', err);
+      alert(err?.message || 'Failed to update rank.');
+    }
+  };
 
-const handleUpdateRank = async (rank: string) => {
-  try {
-    await dataService.updateProfile(userId, { rank });
-    setActiveModal(null);
-    await onRefreshProfile();
-  } catch (err: any) {
-    console.error('Failed to update rank:', err);
-    alert(err?.message || 'Failed to update rank.');
-  }
-};
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file.');
+      return;
+    }
 
-  if (!file.type.startsWith('image/')) {
-    alert('Please choose an image file.');
-    return;
-  }
+    setLoading(true);
 
-  setLoading(true);
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
 
-  try {
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      await dataService.updateProfile(userId, {
+        avatar_url: data.publicUrl
       });
 
-    if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-
-    await dataService.updateProfile(userId, {
-      avatar_url: data.publicUrl
-    });
-
-    await onRefreshProfile();
-  } catch (err: any) {
-    console.error('Avatar upload failed:', err);
-    alert(err?.message || 'Failed to upload profile picture.');
-  } finally {
-    setLoading(false);
-    e.target.value = '';
-  }
-};
+      await onRefreshProfile();
+    } catch (err: any) {
+      console.error('Avatar upload failed:', err);
+      alert(err?.message || 'Failed to upload profile picture.');
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
+  };
 
   const handleTransferOwnership = async () => {
     if (!club) return;
@@ -185,7 +182,6 @@ const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   };
 
-
   const handleSignOut = async () => {
     setLoading(true);
     try { await dataService.signOut(); }
@@ -196,83 +192,78 @@ const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const avatarSrc = profileData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`;
 
   return (
-    <div className="space-y-6 pb-24 animate-in fade-in duration-500">
-      <div className="flex flex-col items-center py-6">
-        <div className="relative group">
-          <img src={avatarSrc} className="w-28 h-28 rounded-[40px] border-4 border-slate-900 bg-slate-800 shadow-xl object-cover" alt="Profile" />
-          <button onClick={() => fileInputRef.current?.click()} className="absolute -bottom-1 -right-1 bg-indigo-600 p-2.5 rounded-2xl border-2 border-slate-950 shadow-lg hover:scale-110 active:scale-90 transition-all">
-             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    <>
+      <div className="col" style={{ alignItems: 'center', padding: '24px 0' }}>
+        <div className="relative">
+          <img src={avatarSrc} className="avatar" style={{ width: 104, height: 104 }} alt="Profile" />
+          <button onClick={() => fileInputRef.current?.click()} className="btn-icon" style={{ position: 'absolute', bottom: -4, right: -4, background: 'var(--blue-vivid)', color: '#fff', border: '2px solid var(--sand-100)' }}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           </button>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+          <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleAvatarUpload} />
         </div>
-        <h2 className="text-xl font-black italic tracking-tight mt-4 uppercase text-white">{displayName}</h2>
-        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 text-center px-4">{subTitle}</p>
-        
-{/* Belt + Stripes */}
-<div className="flex flex-col items-center gap-4 mt-6 w-full max-w-xs">
-  {/* Belt display */}
-  <div className={`w-full py-4 rounded-2xl text-center text-[12px] font-black uppercase tracking-widest ${beltPill(profileData?.rank)}`}>
-    {baseBelt(profileData?.rank)} {rankDef.labelType}
-  </div>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--ink-900)', marginTop: 14 }}>{displayName}</h2>
+        <p className="section-lbl" style={{ padding: 0, marginTop: 2, textAlign: 'center' }}>{subTitle}</p>
 
-  {/* Stripes */}
-  <div className="flex items-center gap-3 bg-slate-900/50 p-4 rounded-3xl border border-slate-800 w-full justify-between">
-    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Stripes</span>
-    <div className="flex gap-1.5">
-      {[0, 1, 2, 3, 4].map(i => (
-        <button 
-          key={i} 
-          onClick={() => handleUpdateStripes(i)}
-          className={`w-4 h-8 rounded border-2 border-slate-950 transition-all ${
-            i > 0 && i <= (profileData?.stripes || 0)
-              ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.3)]'
-              : 'bg-slate-800 opacity-30'
-          }`}
-        />
-      ))}
-    </div>
-  </div>
+        {/* Belt + Stripes */}
+        <div className="col gap-3" style={{ marginTop: 20, width: '100%', maxWidth: 300 }}>
+          <div className={`belt ${beltClass(profileData?.rank)}`} style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: '0.75rem' }}>
+            {baseBelt(profileData?.rank)} {rankDef.labelType}
+          </div>
 
-  {/* Update belt button below stripes */}
-  <button
-    onClick={() => setActiveModal('rank')}
-    className="w-full py-4 rounded-2xl bg-slate-900 border border-slate-800 text-[11px] font-black uppercase tracking-widest text-indigo-400 hover:border-indigo-500 transition-all"
-  >
-    Update {rankDef.labelType}
-  </button>
-</div>
+          <div className="card-inset row sb" style={{ padding: 14 }}>
+            <span className="section-lbl" style={{ padding: 0 }}>Stripes</span>
+            <div className="stripes">
+              {[0, 1, 2, 3, 4].map(i => (
+                <button
+                  key={i}
+                  onClick={() => handleUpdateStripes(i)}
+                  className={`stripe ${i > 0 && i <= (profileData?.stripes || 0) ? 'on' : 'off'}`}
+                  style={{ border: 'none', cursor: 'pointer', padding: 0 }}
+                  aria-label={`Set ${i} stripes`}
+                />
+              ))}
+            </div>
+          </div>
 
+          <button onClick={() => setActiveModal('rank')} className="btn btn-ghost btn-full">
+            Update {rankDef.labelType}
+          </button>
+        </div>
       </div>
 
+      {/* Membership Plan Card removed with premium tier feature */}
+
       {/* Main Settings List */}
-      <div className="bg-slate-900 border border-slate-800 rounded-[32px] overflow-hidden">
-        <div className="p-5 border-b border-slate-800">
-          <h3 className="font-black text-slate-300 uppercase text-[10px] tracking-widest">Settings</h3>
-        </div>
-        <div className="divide-y divide-slate-800">
-          <div onClick={() => setActiveModal('notifications')} className="flex items-center justify-between p-6 hover:bg-slate-800/50 transition-colors cursor-pointer group">
-            <div className="flex items-center gap-4">
-              <div className="text-slate-500 group-hover:text-indigo-400"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
-              <div><p className="text-[11px] font-black uppercase text-slate-200">Push Notifications</p><p className="text-[9px] text-indigo-400 font-bold uppercase">{notifEnabled ? "Active" : "Muted"}</p></div>
+      <div className="card">
+        <div className="card-header">Settings</div>
+        <div>
+          <div onClick={() => setActiveModal('notifications')} className="list-row">
+            <div className="row gap-3">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--ink-400)"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <div>
+                <p className="list-label">Push Notifications</p>
+                <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--blue-vivid)', textTransform: 'uppercase', marginTop: 1 }}>{notifEnabled ? "Active" : "Muted"}</p>
+              </div>
             </div>
-            <svg className="w-4 h-4 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 5l7 7-7 7"/></svg>
+            <span className="chevron" />
           </div>
-          <div onClick={() => setActiveModal('security')} className="flex items-center justify-between p-6 hover:bg-slate-800/50 transition-colors cursor-pointer group">
-            <div className="flex items-center gap-4">
-              <div className="text-slate-500 group-hover:text-indigo-400"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-              <div><p className="text-[11px] font-black uppercase text-slate-200">Security</p><p className="text-[9px] text-indigo-400 font-bold uppercase">Change Password</p></div>
+          <div onClick={() => setActiveModal('security')} className="list-row">
+            <div className="row gap-3">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--ink-400)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div>
+                <p className="list-label">Security</p>
+                <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--blue-vivid)', textTransform: 'uppercase', marginTop: 1 }}>Change Password</p>
+              </div>
             </div>
-            <svg className="w-4 h-4 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 5l7 7-7 7"/></svg>
+            <span className="chevron" />
           </div>
         </div>
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-red-500/5 border border-red-500/20 rounded-[32px] overflow-hidden">
-        <div className="p-5 border-b border-red-500/10">
-          <h3 className="font-black text-red-400 uppercase text-[10px] tracking-widest">Danger Zone</h3>
-        </div>
-        <div className="divide-y divide-red-500/10">
+      <div className="card" style={{ borderColor: 'rgba(220,38,38,0.15)' }}>
+        <div className="card-header" style={{ color: 'var(--red-vivid)' }}>Danger Zone</div>
+        <div>
           {isActualOwner && (
             <div
               onClick={() => {
@@ -283,158 +274,180 @@ const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 setSelectedNewOwner(null);
                 setActiveModal('transfer');
               }}
-              className="flex items-center justify-between p-6 hover:bg-red-500/10 transition-colors cursor-pointer group"
+              className="list-row list-row-danger"
             >
-              <div><p className="text-[11px] font-black uppercase text-red-200">Transfer Ownership</p><p className="text-[9px] text-red-400/60 font-bold uppercase">Appoint a new Coach</p></div>
-              <svg className="w-4 h-4 text-red-900" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 5l7 7-7 7"/></svg>
+              <div>
+                <p className="list-label">Transfer Ownership</p>
+                <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--red-vivid)', opacity: 0.7, textTransform: 'uppercase', marginTop: 1 }}>Appoint a new Coach</p>
+              </div>
+              <span className="chevron" />
             </div>
           )}
           {isActualOwner && (
-            <div onClick={() => setActiveModal('delete_club')} className="flex items-center justify-between p-6 hover:bg-red-500/10 transition-colors cursor-pointer group">
-              <div><p className="text-[11px] font-black uppercase text-red-200">Delete Academy</p><p className="text-[9px] text-red-400/60 font-bold uppercase">Irreversible Action</p></div>
-              <svg className="w-4 h-4 text-red-900" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            <div onClick={() => setActiveModal('delete_club')} className="list-row list-row-danger">
+              <div>
+                <p className="list-label">Delete Academy</p>
+                <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--red-vivid)', opacity: 0.7, textTransform: 'uppercase', marginTop: 1 }}>Irreversible action</p>
+              </div>
+              <span className="chevron" />
             </div>
           )}
           <div
             onClick={() => {
               setPasswordInput('');
-              // If owner has other members, show the constraint modal (with actions)
               setActiveModal('delete_account');
             }}
-            className="flex items-center justify-between p-6 hover:bg-red-500/10 transition-colors cursor-pointer group"
+            className="list-row list-row-danger"
           >
-            <div><p className="text-[11px] font-black uppercase text-red-200">Delete Account</p><p className="text-[9px] text-red-400/60 font-bold uppercase">Wipe all your data</p></div>
-            <svg className="w-4 h-4 text-red-900" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            <div>
+              <p className="list-label">Delete Account</p>
+              <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--red-vivid)', opacity: 0.7, textTransform: 'uppercase', marginTop: 1 }}>Wipe all your data</p>
+            </div>
+            <span className="chevron" />
           </div>
         </div>
       </div>
 
-      <button onClick={handleSignOut} className="w-full py-5 bg-slate-900 border border-slate-800 rounded-[32px] text-slate-500 font-black uppercase tracking-widest text-[11px]">Sign Out</button>
+      <button onClick={handleSignOut} className="btn btn-ghost btn-full">Sign Out</button>
 
       {/* OVERLAY MODALS */}
       {activeModal === 'rank' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-           <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-4 max-h-[70vh] overflow-y-auto">
-              <h3 className="text-xl font-black text-white italic uppercase text-center mb-4">Promote / Change Rank</h3>
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-body col gap-2" style={{ paddingTop: 20, maxHeight: '70vh', overflowY: 'auto' }}>
+              <h3 className="modal-title" style={{ textAlign: 'center', marginBottom: 8 }}>Promote / Change Rank</h3>
               {rankDef.ranks.map(r => (
-                <button key={r} onClick={() => handleUpdateRank(r)} className="w-full py-4 rounded-2xl bg-slate-950 border border-slate-800 text-sm font-black text-white hover:border-indigo-500 transition-all uppercase tracking-tight">{r}</button>
+                <button key={r} onClick={() => handleUpdateRank(r)} className="btn btn-ghost btn-full" style={{ justifyContent: 'flex-start', paddingLeft: 18 }}>{r}</button>
               ))}
-              <button onClick={() => setActiveModal(null)} className="w-full py-4 text-slate-500 font-black uppercase text-xs">Close</button>
-           </div>
+              <button onClick={() => setActiveModal(null)} className="link-btn" style={{ alignSelf: 'center', marginTop: 4 }}>Close</button>
+            </div>
+          </div>
         </div>
       )}
 
       {activeModal === 'transfer' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-           <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
-              <h3 className="text-xl font-black text-white italic uppercase text-center">Transfer Ownership</h3>
-              <p className="text-slate-500 text-xs text-center">Select a member to become the new Academy Owner.</p>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {otherMembers.length === 0 ? <p className="text-center text-slate-600 italic">No other members in academy</p> : otherMembers.map(m => (
-                  <button key={m.id} onClick={() => setSelectedNewOwner(m.id)} className={`w-full p-4 rounded-2xl flex items-center gap-3 border transition-all ${selectedNewOwner === m.id ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-800 bg-slate-950'}`}>
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black">{m.name[0]}</div>
-                    <span className="text-sm font-bold text-white uppercase">{m.name}</span>
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-body col gap-4" style={{ paddingTop: 20 }}>
+              <h3 className="modal-title" style={{ textAlign: 'center' }}>Transfer Ownership</h3>
+              <p className="modal-desc" style={{ marginBottom: 0 }}>Select a member to become the new Academy Owner.</p>
+              <div className="col gap-2" style={{ maxHeight: 240, overflowY: 'auto' }}>
+                {otherMembers.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--ink-400)', fontStyle: 'italic', fontSize: '0.875rem' }}>No other members in academy</p>
+                ) : otherMembers.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setSelectedNewOwner(m.id)}
+                    className="card card-p row gap-3"
+                    style={{ border: selectedNewOwner === m.id ? '2px solid var(--blue-vivid)' : undefined, cursor: 'pointer' }}
+                  >
+                    <div className="card-inset" style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6875rem', fontWeight: 800 }}>{m.name[0]}</div>
+                    <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--ink-900)' }}>{m.name}</span>
                   </button>
                 ))}
               </div>
-              <div className="flex gap-3">
-                <button onClick={() => setActiveModal(null)} className="flex-1 py-4 bg-slate-800 rounded-2xl font-black uppercase text-xs">Cancel</button>
-                <button onClick={handleTransferOwnership} disabled={!selectedNewOwner} className="flex-1 py-4 bg-indigo-600 rounded-2xl font-black uppercase text-xs shadow-lg disabled:opacity-50">Transfer</button>
+              <div className="row gap-2">
+                <button onClick={() => setActiveModal(null)} className="btn btn-ghost flex-1">Cancel</button>
+                <button onClick={handleTransferOwnership} disabled={!selectedNewOwner} className="btn btn-primary flex-1">Transfer</button>
               </div>
-           </div>
+            </div>
+          </div>
         </div>
       )}
 
       {activeModal === 'delete_club' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-           <div className="bg-slate-900 border border-red-500/30 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
-              <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto"><svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
-              <h3 className="text-xl font-black text-white italic uppercase text-center">Delete Academy</h3>
-              <p className="text-slate-500 text-xs text-center leading-relaxed">This will permanently delete "{clubName}". All schedules and roster data will be wiped forever.</p>
-              <input type="password" placeholder="Confirm Password" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} />
-              <div className="flex gap-3">
-                <button onClick={() => setActiveModal(null)} className="flex-1 py-4 bg-slate-800 rounded-2xl font-black uppercase text-xs">Back</button>
-                <button onClick={handleDeleteClub} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg">Confirm Delete</button>
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-top">
+              <div className="modal-icon">
+                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
               </div>
-           </div>
+              <h3 className="modal-title">Delete Academy</h3>
+            </div>
+            <div className="modal-body col gap-3">
+              <p className="modal-desc" style={{ marginBottom: 0 }}>This will permanently delete "{clubName}". All schedules and roster data will be wiped forever.</p>
+              <input type="password" placeholder="Confirm Password" className="field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} />
+              <div className="row gap-2">
+                <button onClick={() => setActiveModal(null)} className="btn btn-ghost flex-1">Back</button>
+                <button onClick={handleDeleteClub} className="btn btn-danger flex-1">Confirm Delete</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {activeModal === 'delete_account' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-           <div className="bg-slate-900 border border-red-500/30 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
-              <h3 className="text-xl font-black text-white italic uppercase text-center">Delete Account</h3>
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-body col gap-4" style={{ paddingTop: 20 }}>
+              <h3 className="modal-title" style={{ textAlign: 'center' }}>Delete Account</h3>
               {isActualOwner && members.length > 1 ? (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                   <p className="text-xs text-red-400 font-bold uppercase leading-relaxed text-center">
-                     You can’t delete your account while your academy has other members.
-                     Transfer ownership to another member or delete the academy first.
-                   </p>
-                   <div className="grid grid-cols-1 gap-3 mt-4">
-                     <button
-                       onClick={() => {
-                         if (otherMembers.length === 0) {
-                           alert('You have no other members to transfer ownership to!');
-                           return;
-                         }
-                         setSelectedNewOwner(null);
-                         setActiveModal('transfer');
-                       }}
-                       className="w-full py-4 bg-indigo-600 rounded-xl font-black uppercase text-xs"
-                     >
-                       Transfer Ownership
-                     </button>
-                     <button
-                       onClick={() => {
-                         setActiveModal('delete_club');
-                       }}
-                       className="w-full py-4 bg-red-600 rounded-xl font-black uppercase text-xs"
-                     >
-                       Delete Academy
-                     </button>
-                     <button onClick={() => setActiveModal(null)} className="w-full py-4 bg-slate-800 rounded-xl font-black uppercase text-xs">Close</button>
-                   </div>
+                <div className="card-inset col gap-3" style={{ padding: 16 }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--red-vivid)', textAlign: 'center', lineHeight: 1.5 }}>
+                    You can't delete your account while your academy has other members.
+                    Transfer ownership to another member or delete the academy first.
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (otherMembers.length === 0) {
+                        alert('You have no other members to transfer ownership to!');
+                        return;
+                      }
+                      setSelectedNewOwner(null);
+                      setActiveModal('transfer');
+                    }}
+                    className="btn btn-primary btn-full"
+                  >
+                    Transfer Ownership
+                  </button>
+                  <button onClick={() => setActiveModal('delete_club')} className="btn btn-danger btn-full">Delete Academy</button>
+                  <button onClick={() => setActiveModal(null)} className="btn btn-ghost btn-full">Close</button>
                 </div>
               ) : (
                 <>
-                  <p className="text-slate-500 text-xs text-center">Enter password to wipe your personal profile and mat-history.</p>
-                  <input type="password" placeholder="Confirm Password" className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} />
-                  <div className="flex gap-3">
-                    <button onClick={() => setActiveModal(null)} className="flex-1 py-4 bg-slate-800 rounded-2xl font-black uppercase text-xs">Cancel</button>
-                    <button onClick={handleDeleteAccount} disabled={loading} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs disabled:opacity-50">Delete Forever</button>
+                  <p className="modal-desc" style={{ marginBottom: 0 }}>Enter password to wipe your personal profile and mat-history.</p>
+                  <input type="password" placeholder="Confirm Password" className="field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} />
+                  <div className="row gap-2">
+                    <button onClick={() => setActiveModal(null)} className="btn btn-ghost flex-1">Cancel</button>
+                    <button onClick={handleDeleteAccount} disabled={loading} className="btn btn-danger flex-1">Delete Forever</button>
                   </div>
                 </>
               )}
-           </div>
+            </div>
+          </div>
         </div>
       )}
 
       {activeModal === 'notifications' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-           <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6">
-              <h3 className="text-xl font-black text-white italic uppercase text-center">Notifications</h3>
-              <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl">
-                 <span className="text-sm font-bold text-white uppercase tracking-tight">Push Alerts</span>
-                 <button onClick={() => setNotifEnabled(!notifEnabled)} className={`w-12 h-6 rounded-full transition-all relative ${notifEnabled ? 'bg-indigo-600' : 'bg-slate-800'}`}>
-                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${notifEnabled ? 'left-7' : 'left-1'}`}></div>
-                 </button>
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-body col gap-4" style={{ paddingTop: 20 }}>
+              <h3 className="modal-title" style={{ textAlign: 'center' }}>Notifications</h3>
+              <div className="card-inset row sb" style={{ padding: 14 }}>
+                <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--ink-900)' }}>Push Alerts</span>
+                <button onClick={() => setNotifEnabled(!notifEnabled)} className={`toggle ${notifEnabled ? 'on' : 'off'}`}>
+                  <span className="toggle-knob" />
+                </button>
               </div>
-              <button onClick={() => setActiveModal(null)} className="w-full py-4 bg-indigo-600 rounded-2xl font-black uppercase text-xs">Save Settings</button>
-           </div>
+              <button onClick={() => setActiveModal(null)} className="btn btn-primary btn-full">Save Settings</button>
+            </div>
+          </div>
         </div>
       )}
 
       {activeModal === 'security' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-xl animate-in fade-in">
-           <div className="bg-slate-900 border border-slate-800 w-full max-w-md p-8 rounded-[40px] shadow-2xl space-y-6 text-center">
-              <h3 className="text-xl font-black text-white italic uppercase">Update Password</h3>
-              <p className="text-slate-500 text-xs px-4">A reset link will be sent to your email to securely update your credentials.</p>
-              <button onClick={() => { alert("Reset link sent!"); setActiveModal(null); }} className="w-full py-5 bg-indigo-600 rounded-2xl font-black uppercase text-xs shadow-lg">Send Reset Link</button>
-              <button onClick={() => setActiveModal(null)} className="w-full py-2 text-slate-500 font-black uppercase text-xs mt-2">Maybe Later</button>
-           </div>
+        <div className="overlay">
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-body col gap-3" style={{ paddingTop: 20, textAlign: 'center' }}>
+              <h3 className="modal-title">Update Password</h3>
+              <p className="modal-desc">A reset link will be sent to your email to securely update your credentials.</p>
+              <button onClick={() => { alert("Reset link sent!"); setActiveModal(null); }} className="btn btn-primary btn-full">Send Reset Link</button>
+              <button onClick={() => setActiveModal(null)} className="link-btn" style={{ alignSelf: 'center' }}>Maybe Later</button>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
