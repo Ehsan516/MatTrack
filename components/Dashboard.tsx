@@ -16,12 +16,15 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
   const [isEditingTarget, setIsEditingTarget] = useState(false);
   const [tempTarget, setTempTarget] = useState(weeklyTarget);
   const [nextBooking, setNextBooking] = useState<(Booking & { classes: Class }) | null>(null);
+  const [clubId, setClubId] = useState<string | null>(null);
   const [activeAlert, setActiveAlert] = useState<ClubAlert | null>(null);
+  const [broadcastText, setBroadcastText] = useState('');
+  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     const savedTarget = localStorage.getItem('mt_weekly_target');
     if (savedTarget) setWeeklyTarget(parseInt(savedTarget, 10));
-    
+
     const savedAttendance = localStorage.getItem('mt_current_attendance');
     if (savedAttendance) setAttendanceCount(parseInt(savedAttendance, 10));
 
@@ -32,12 +35,29 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
     if (userId) {
       const booking = await dataService.getNextBooking(userId);
       setNextBooking(booking);
-      
+
       const memberships = await dataService.getUserMemberships(userId);
       if (memberships.length > 0) {
-        const alerts = await dataService.getAlerts(memberships[0].club_id);
+        const club = memberships[0].club_id;
+        setClubId(club);
+        const alerts = await dataService.getAlerts(club);
         if (alerts.length > 0) setActiveAlert(alerts[0]);
       }
+    }
+  };
+
+  const handlePostAlert = async () => {
+    if (!clubId || !broadcastText.trim()) return;
+    setPosting(true);
+    try {
+      await dataService.postAlert(clubId, userId, broadcastText.trim());
+      setBroadcastText('');
+      const alerts = await dataService.getAlerts(clubId);
+      if (alerts.length > 0) setActiveAlert(alerts[0]);
+    } catch (err) {
+      alert('Failed to post alert.');
+    } finally {
+      setPosting(false);
     }
   };
 
@@ -59,21 +79,14 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
     <div className="space-y-6 pb-24">
       {/* High Priority Alert Banner */}
       {activeAlert && (
-        <div className={`p-4 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-top-4 shadow-lg ${
-          activeAlert.type === 'delay' ? 'bg-amber-500/10 border border-amber-500/30' : 
-          activeAlert.type === 'urgent' ? 'bg-red-500/10 border border-red-500/30' : 
-          'bg-indigo-500/10 border border-indigo-500/30'
-        }`}>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 animate-pulse ${
-            activeAlert.type === 'delay' ? 'bg-amber-500 text-white' : 
-            activeAlert.type === 'urgent' ? 'bg-red-500 text-white' : 
-            'bg-indigo-600 text-white'
-          }`}>
+        <div className="p-4 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-top-4 shadow-lg bg-indigo-500/10 border border-indigo-500/30">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 animate-pulse bg-indigo-600 text-white">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
           </div>
           <div className="flex-1">
              <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Coach Broadcast</p>
-             <p className="text-sm font-bold text-white leading-tight">{activeAlert.message}</p>
+             <p className="text-sm font-bold text-white leading-tight">{activeAlert.title}</p>
+             {activeAlert.body && <p className="text-xs text-slate-400 mt-1">{activeAlert.body}</p>}
           </div>
           <button onClick={() => setActiveAlert(null)} className="p-2 opacity-40 hover:opacity-100">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"/></svg>
@@ -99,6 +112,29 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
            <svg className="w-32 h-32 rotate-12" fill="currentColor" viewBox="0 0 24 24"><path d="M2 3h20v18H2V3z"/></svg>
         </div>
       </section>
+
+      {/* Owner broadcast composer */}
+      {role === UserRole.OWNER && (
+        <section className="bg-slate-900 border border-slate-800 rounded-[32px] p-6 shadow-sm space-y-3">
+          <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest italic">Broadcast to Team</h3>
+          <div className="flex gap-2">
+            <input
+              value={broadcastText}
+              onChange={e => setBroadcastText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handlePostAlert(); }}
+              placeholder="e.g. Coach running 10 mins late, sorry!"
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600 transition-all"
+            />
+            <button
+              onClick={handlePostAlert}
+              disabled={posting || !broadcastText.trim()}
+              className="bg-indigo-600 text-white font-black px-6 rounded-2xl text-[10px] uppercase tracking-widest disabled:opacity-50 shrink-0"
+            >
+              {posting ? '...' : 'Post'}
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Your Next Class */}
       {role === UserRole.MEMBER && nextBooking && (
