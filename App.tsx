@@ -6,10 +6,12 @@ import Schedule from './components/Schedule';
 import Profile from './components/Profile';
 import AdminDashboard from './components/AdminDashboard';
 import Auth from './components/Auth';
+import Splash from './components/Splash';
 import { dataService } from './services/dataService';
 import { supabase } from './services/supabaseClient';
 
 const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [role, setRole] = useState<UserRole | 'ADMIN' | null>(null);
   const [activeClub, setActiveClub] = useState<any>(null);
   const [memberships, setMemberships] = useState<any[]>([]);
@@ -211,6 +213,10 @@ const App: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (showSplash) {
+    return <Splash onFinish={() => setShowSplash(false)} />;
+  }
 
   if (loading) {
     return (
