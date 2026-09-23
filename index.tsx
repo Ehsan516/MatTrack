@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { FeedbackProvider } from './components/ui/Feedback';
 
 import './index.css';
 import './styles/mattrack.css';
@@ -13,6 +14,8 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <FeedbackProvider>
+      <App />
+    </FeedbackProvider>
   </React.StrictMode>
 );
