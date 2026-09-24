@@ -4,19 +4,38 @@ import Dashboard from './components/Dashboard';
 import MemberList from './components/MemberList';
 import Schedule from './components/Schedule';
 import Profile from './components/Profile';
-import AdminDashboard from './components/AdminDashboard';
 import Auth from './components/Auth';
 import Splash from './components/Splash';
+import Avatar from './components/ui/Avatar';
+import Icon, { IconName } from './components/ui/Icon';
+import Modal from './components/ui/Modal';
+import { LogoMark, Wordmark } from './components/ui/Logo';
+import { useFeedback } from './components/ui/Feedback';
 import { dataService } from './services/dataService';
-import { supabase } from './services/supabaseClient';
+import { IS_DEMO } from './services/config';
+
+type Tab = 'dashboard' | 'members' | 'schedule' | 'profile';
+
+const SPORT_LABELS: Record<SportType, string> = {
+  'BJJ': 'Brazilian Jiu-Jitsu',
+  'No-Gi': 'No-Gi Grappling',
+  'Judo': 'Judo',
+  'Wrestling': 'Wrestling',
+  'Karate': 'Karate',
+  'Taekwondo': 'Taekwondo',
+};
+
+const clubInitials = (name: string) =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join('');
 
 const App: React.FC = () => {
-  const [showSplash, setShowSplash] = useState(true);
-  const [role, setRole] = useState<UserRole | 'ADMIN' | null>(null);
+  const { toast } = useFeedback();
+  const [showSplash, setShowSplash] = useState(!IS_DEMO);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [activeClub, setActiveClub] = useState<any>(null);
   const [memberships, setMemberships] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'members' | 'schedule' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [sport, setSport] = useState<SportType>('BJJ');
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +45,7 @@ const App: React.FC = () => {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [newName, setNewName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const [joinStep, setJoinStep] = useState<'SELECT' | 'CREATE' | 'JOIN'>('SELECT');
   const [joinClubId, setJoinClubId] = useState('');
@@ -34,7 +54,7 @@ const App: React.FC = () => {
   const [newClubSport, setNewClubSport] = useState<SportType>('BJJ');
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const unsubscribe = dataService.onAuthStateChange((event, sessionUserId) => {
       if (event === 'SIGNED_OUT') {
         setUserId(null);
         setRole(null);
@@ -42,13 +62,13 @@ const App: React.FC = () => {
         setMemberships([]);
         setProfileData(null);
         setActiveTab('dashboard');
-      } else if (session?.user) {
-        setUserId(session.user.id);
+      } else if (sessionUserId) {
+        setUserId(sessionUserId);
       }
     });
 
     checkUser();
-    return () => subscription.unsubscribe();
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -66,9 +86,9 @@ const App: React.FC = () => {
   }, [activeClub]);
 
   const checkUser = async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user) {
-      setUserId(data.session.user.id);
+    const sessionUserId = await dataService.getSessionUserId();
+    if (sessionUserId) {
+      setUserId(sessionUserId);
     } else {
       setLoading(false);
     }
@@ -84,6 +104,12 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const effectiveRoleFor = (membership: any) => {
+    const dbRole = membership.role?.toString().toUpperCase();
+    const isLiteralOwner = membership.clubs.owner_id === userId;
+    return (dbRole === 'OWNER' || isLiteralOwner) ? UserRole.OWNER : UserRole.MEMBER;
   };
 
   const loadMemberships = async () => {
@@ -103,10 +129,7 @@ const App: React.FC = () => {
           setSport(currentClubMembership.clubs.sport);
         }
 
-        const dbRole = currentClubMembership.role?.toString().toUpperCase();
-        const isLiteralOwner = currentClubMembership.clubs.owner_id === userId;
-        const effectiveRole = (dbRole === 'OWNER' || isLiteralOwner) ? UserRole.OWNER : UserRole.MEMBER;
-        setRole(effectiveRole);
+        setRole(effectiveRoleFor(currentClubMembership));
       } else {
         setActiveClub(null);
         setRole(null);
@@ -157,60 +180,63 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAuthComplete = () => {
-    checkUser();
-  };
-
   const handleSwitchClub = (membership: any) => {
     setActiveClub(membership.clubs);
-    const dbRole = membership.role?.toString().toUpperCase();
-    const isLiteralOwner = membership.clubs.owner_id === userId;
-    const effectiveRole = (dbRole === 'OWNER' || isLiteralOwner) ? UserRole.OWNER : UserRole.MEMBER;
-    setRole(effectiveRole);
+    setRole(effectiveRoleFor(membership));
     setSport(membership.clubs.sport);
     setIsSwitcherOpen(false);
+    toast(`Switched to ${membership.clubs.name}`, 'info');
   };
 
-  const handleUpdateName = async () => {
+  const handleUpdateName = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!userId || !newName.trim()) return;
-    setLoading(true);
+    setSaving(true);
     try {
-      await dataService.updateProfile(userId, { username: newName });
+      await dataService.updateProfile(userId, { username: newName.trim() });
       setShowSetupModal(false);
       await loadProfile();
+      toast('Profile saved');
     } catch (err) {
-      alert("Failed to update name.");
+      toast("Couldn't save your name. Please try again.", 'error');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleJoinOrCreate = async () => {
+  const closeJoinModal = () => {
+    setShowJoinModal(false);
+    setJoinStep('SELECT');
+    setJoinClubId('');
+    setNewClubName('');
+    setNewClubCustomId('');
+    setNewClubSport('BJJ');
+  };
+
+  const handleJoinOrCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!userId) return;
-    setLoading(true);
+    setSaving(true);
     try {
       if (joinStep === 'CREATE') {
-        const club = await dataService.createClub(userId, newClubName, newClubCustomId, newClubSport);
+        const club = await dataService.createClub(userId, newClubName.trim(), newClubCustomId.trim(), newClubSport);
         setActiveClub(club);
+        setSport(newClubSport);
         setRole(UserRole.OWNER);
+        toast(`${newClubName.trim()} is live`);
       } else {
-        const club = await dataService.joinClub(userId, joinClubId);
+        const club = await dataService.joinClub(userId, joinClubId.trim());
         setActiveClub(club);
         setRole(UserRole.MEMBER);
+        toast('Joined academy');
       }
 
       await loadMemberships();
-
-      setShowJoinModal(false);
-      setJoinStep('SELECT');
-      setJoinClubId('');
-      setNewClubName('');
-      setNewClubCustomId('');
-      setNewClubSport('BJJ');
+      closeJoinModal();
     } catch (err: any) {
-      alert(err.message || "Action failed.");
+      toast(err.message || "Something went wrong. Please try again.", 'error');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -220,36 +246,36 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="shell" style={{ alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-        <div className="spinner" />
-        <p className="section-lbl">Entering Dojo…</p>
+      <div className="shell centered gap-5">
+        <LogoMark size={48} />
+        <div className="spinner sm" aria-label="Loading" />
       </div>
     );
   }
 
   if (!userId) {
-    return <Auth onComplete={handleAuthComplete} />;
+    return <Auth onComplete={checkUser} />;
   }
 
   const noClubJoined = !activeClub && memberships.length === 0;
+  const isOwner = role === UserRole.OWNER;
+  const username = profileData?.username || 'Grappler';
 
   const renderContent = () => {
-    if (role === 'ADMIN') return <AdminDashboard />;
-
     if (noClubJoined) {
       return (
-        <div className="col" style={{ alignItems: 'center', textAlign: 'center', gap: 24, padding: '64px 8px' }}>
-          <div className="modal-icon blue" style={{ width: 88, height: 88, borderRadius: 28 }}>
-            <svg className="w-10 h-10" width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-            </svg>
+        <div className="col" style={{ alignItems: 'center', textAlign: 'center', gap: 20, padding: '56px 12px' }}>
+          <div className="empty-state-icon" style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--blue-light)', color: 'var(--blue-vivid)' }}>
+            <Icon name="building" size={28} />
           </div>
-          <div className="col gap-2" style={{ maxWidth: 260 }}>
-            <h2 className="modal-title">No Academy Joined</h2>
-            <p className="modal-desc" style={{ marginBottom: 0 }}>Join an existing team or launch your own academy to start tracking your progress.</p>
+          <div className="col gap-2" style={{ maxWidth: 300 }}>
+            <h2 className="page-title" style={{ fontSize: '1.25rem' }}>You're not in an academy yet</h2>
+            <p className="muted" style={{ fontSize: '0.9375rem', lineHeight: 1.5 }}>
+              Join your gym with its academy code, or set up your own to manage classes and members.
+            </p>
           </div>
           <button onClick={() => setShowJoinModal(true)} className="btn btn-primary">
-            Join or Create Academy
+            Join or create an academy
           </button>
         </div>
       );
@@ -257,264 +283,233 @@ const App: React.FC = () => {
 
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard userId={userId} role={role as UserRole} sport={sport} members={members} />;
+        return (
+          <Dashboard
+            userId={userId}
+            role={role as UserRole}
+            sport={sport}
+            members={members}
+            clubId={activeClub?.id}
+            username={username}
+            onNavigate={setActiveTab}
+          />
+        );
       case 'members':
-        return <MemberList members={members} sport={sport} role={role as UserRole} clubId={activeClub?.id} onRefresh={loadMembers} />;
+        return <MemberList members={members} sport={sport} role={role as UserRole} clubId={activeClub?.id} currentUserId={userId} onRefresh={loadMembers} />;
       case 'schedule':
-        return <Schedule userId={userId} role={role as UserRole} clubId={activeClub?.id || ''} sport={sport} />
+        return <Schedule userId={userId} role={role as UserRole} clubId={activeClub?.id || ''} sport={sport} />;
       case 'profile':
         return (
-        <Profile
-          userId={userId}
-          role={role as UserRole}
-          profileData={profileData}
-          onRefreshProfile={loadProfile}
-          members={members}
-          club={activeClub}
-          onClubAction={loadMemberships}
-        />
+          <Profile
+            userId={userId}
+            role={role as UserRole}
+            profileData={profileData}
+            onRefreshProfile={loadProfile}
+            members={members}
+            club={activeClub}
+            onClubAction={loadMemberships}
+          />
         );
       default:
         return null;
     }
   };
 
-  const headerAvatarSrc =
-    profileData?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileData?.username || 'Grappler'}`;
-
   return (
     <div className="shell">
       <header className="nav">
-        <div className="relative">
+        <div className="relative" style={{ minWidth: 0 }}>
           <button
             onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
-            className="row gap-2"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', minHeight: 44 }}
+            className="club-switch"
+            aria-expanded={isSwitcherOpen}
+            aria-haspopup="menu"
           >
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--blue-vivid)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--btn-shadow)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
-                <path d="M2 3h20" />
-                <path d="M5 3v16a2 2 0 0 0 2 2h10" />
-              </svg>
-            </div>
-            <div className="col">
-              <span className="nav-wordmark">Mat<span>Track</span></span>
+            <LogoMark size={34} />
+            <div className="col" style={{ minWidth: 0 }}>
+              <Wordmark />
               {activeClub && (
-                <span className="row gap-1" style={{ fontSize: '0.6875rem', fontWeight: 800, color: 'var(--blue-vivid)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {activeClub.custom_id}
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ transition: 'transform 0.15s ease', transform: isSwitcherOpen ? 'rotate(180deg)' : 'none' }}>
-                    <path d="M19 9l-7 7-7-7" />
-                  </svg>
+                <span className="club-switch-name">
+                  <span>{activeClub.name}</span>
+                  <Icon name="chevronDown" size={14} />
                 </span>
               )}
             </div>
           </button>
 
           {isSwitcherOpen && (
-            <div className="dropdown" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: 288, zIndex: 60 }}>
-              <div className="dropdown-header">
-                <span>Academies</span>
-                <span>{memberships.length} ACTIVE</span>
-              </div>
+            <>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 55 }} onClick={() => setIsSwitcherOpen(false)} />
+              <div className="dropdown" role="menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: 300, zIndex: 60 }}>
+                <div className="dropdown-header">
+                  <span>Your academies</span>
+                  <span>{memberships.length}</span>
+                </div>
 
-              {memberships.map((m) => {
-                const isActive = activeClub?.id === m.club_id;
-                return (
-                  <button key={m.id} onClick={() => handleSwitchClub(m)} className={`dropdown-item ${isActive ? 'active' : ''}`}>
-                    <div className="col">
-                      <span className="row gap-2">
-                        <span style={{ fontSize: '0.875rem', fontWeight: 800, color: isActive ? 'var(--blue-vivid)' : 'var(--ink-900)' }}>{m.clubs.name}</span>
-                        {isActive && <span className="badge blue">Active</span>}
-                      </span>
-                      <span className="member-sub">{m.clubs.sport}</span>
-                    </div>
+                {memberships.map((m) => {
+                  const isActive = activeClub?.id === m.club_id;
+                  const memberRole = effectiveRoleFor(m);
+                  return (
+                    <button key={m.id} role="menuitem" onClick={() => handleSwitchClub(m)} className={`dropdown-item ${isActive ? 'active' : ''}`}>
+                      <span className="club-tile">{clubInitials(m.clubs.name)}</span>
+                      <div className="col flex-1">
+                        <span className="truncate" style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--ink-900)' }}>{m.clubs.name}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--ink-500)', marginTop: 1 }}>
+                          {SPORT_LABELS[m.clubs.sport as SportType] ?? m.clubs.sport} · {memberRole === UserRole.OWNER ? 'Owner' : 'Member'}
+                        </span>
+                      </div>
+                      {isActive && <span style={{ color: 'var(--blue-vivid)', display: 'flex' }}><Icon name="check" size={18} /></span>}
+                    </button>
+                  );
+                })}
+
+                <div className="dropdown-divider">
+                  <button
+                    onClick={() => { setShowJoinModal(true); setIsSwitcherOpen(false); }}
+                    className="dropdown-item"
+                    style={{ color: 'var(--blue-vivid)', fontWeight: 600, fontSize: '0.875rem' }}
+                  >
+                    <span className="club-tile" style={{ background: 'var(--blue-light)', color: 'var(--blue-vivid)' }}><Icon name="plus" size={18} /></span>
+                    Join or create an academy
                   </button>
-                );
-              })}
-
-              <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                <button
-                  onClick={() => { setShowJoinModal(true); setIsSwitcherOpen(false); }}
-                  className="dropdown-item"
-                  style={{ color: 'var(--blue-vivid)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                >
-                  + Join/Create Academy
-                </button>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
-        <button onClick={() => setActiveTab('profile')} className="avatar-btn">
-          <img src={headerAvatarSrc} alt="profile" />
+        <button onClick={() => setActiveTab('profile')} className="avatar-btn" aria-label="Open profile">
+          <Avatar name={username} src={profileData?.avatar_url} size={36} />
         </button>
       </header>
 
       <main className="scroll-area">
-        {renderContent()}
+        <div key={`${activeTab}-${activeClub?.id}`} className="col gap-4 screen-enter">
+          {renderContent()}
+        </div>
       </main>
 
-      <nav className="tabbar">
-        <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon="grid" label="Home" />
-        <NavItem
-          active={activeTab === 'members'}
-          onClick={() => setActiveTab('members')}
-          icon="users"
-          label={role?.toString().toUpperCase() === 'OWNER' ? 'Roster' : 'Team'}
-        />
-        <NavItem active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} icon="calendar" label="Classes" />
-        <NavItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon="user" label="Profile" />
-      </nav>
+      {!noClubJoined && (
+        <nav className="tabbar" aria-label="Main">
+          <NavItem active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon="home" label="Home" />
+          <NavItem active={activeTab === 'members'} onClick={() => setActiveTab('members')} icon="users" label={isOwner ? 'Roster' : 'Team'} />
+          <NavItem active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} icon="calendar" label="Classes" />
+          <NavItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon="user" label="Profile" />
+        </nav>
+      )}
 
       {showSetupModal && (
-        <div className="overlay">
-          <div className="modal">
-            <div className="modal-top">
-              <div className="modal-icon blue">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <h3 className="modal-title">Identity Setup</h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--ink-500)', marginTop: 4 }}>How should the academy recognize you?</p>
-            </div>
-            <div className="modal-body col gap-3">
-              <input
-                placeholder="Full Name (e.g. Joe Rogan)"
-                className="field"
-                style={{ textAlign: 'center' }}
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-              />
-              <button
-                onClick={handleUpdateName}
-                disabled={!newName.trim() || loading}
-                className="btn btn-primary btn-full"
-              >
-                {loading ? 'Saving...' : 'Set Identity'}
-              </button>
-            </div>
+        <Modal
+          onClose={() => setShowSetupModal(false)}
+          onSubmit={handleUpdateName}
+          icon="user"
+          title="What should we call you?"
+          description="This is the name your coach and teammates will see."
+        >
+          <div>
+            <label className="field-label" htmlFor="setup-name">Full name</label>
+            <input
+              id="setup-name"
+              placeholder="e.g. Alex Morgan"
+              className="field"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              autoFocus
+            />
           </div>
-        </div>
+          <button type="submit" disabled={!newName.trim() || saving} className="btn btn-primary btn-full">
+            {saving ? 'Saving…' : 'Continue'}
+          </button>
+        </Modal>
       )}
 
       {showJoinModal && (
-        <div className="overlay">
-          <div className="modal" style={{ maxWidth: 400 }}>
-            <div className="modal-body col gap-4" style={{ paddingTop: 20 }}>
-              <div className="row sb">
-                <h3 className="modal-title" style={{ fontSize: '1.0625rem' }}>Academy Hub</h3>
-                <button onClick={() => setShowJoinModal(false)} className="btn-icon" style={{ background: 'none', border: 'none', boxShadow: 'none' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-
-              {joinStep === 'SELECT' && (
-                <div className="col gap-3">
-                  <button onClick={() => setJoinStep('JOIN')} className="card card-p" style={{ textAlign: 'left', cursor: 'pointer', border: 'none' }}>
-                    <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--ink-900)' }}>Join a Team</h4>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--ink-400)', marginTop: 4 }}>Connect to your existing club using their ID.</p>
-                  </button>
-                  <button onClick={() => setJoinStep('CREATE')} className="card card-p" style={{ textAlign: 'left', cursor: 'pointer', border: 'none' }}>
-                    <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--ink-900)' }}>Launch Academy</h4>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--ink-400)', marginTop: 4 }}>Start your own academy and manage your roster.</p>
-                  </button>
-                </div>
-              )}
-
-              {joinStep === 'JOIN' && (
-                <div className="col gap-4">
-                  <div>
-                    <label className="field-label">Academy ID</label>
-                    <input
-                      placeholder="e.g. GRACIE-LDN"
-                      className="field"
-                      style={{ textAlign: 'center', fontSize: '1.375rem', fontWeight: 800, letterSpacing: '0.05em', color: 'var(--blue-vivid)', textTransform: 'uppercase', height: 60 }}
-                      value={joinClubId}
-                      onChange={e => setJoinClubId(e.target.value.toUpperCase())}
-                    />
-                  </div>
-                  <div className="row gap-2">
-                    <button onClick={() => setJoinStep('SELECT')} className="btn btn-ghost flex-1">Back</button>
-                    <button onClick={handleJoinOrCreate} disabled={loading || !joinClubId} className="btn btn-primary flex-1">Connect</button>
-                  </div>
-                </div>
-              )}
-
-              {joinStep === 'CREATE' && (
-                <div className="col gap-3">
-                  <div>
-                    <label className="field-label">Academy Name</label>
-                    <input placeholder="Gracie Jiu-Jitsu London" className="field" value={newClubName} onChange={e => setNewClubName(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="field-label">Academy Custom ID</label>
-                    <input placeholder="GRACIE-LDN" className="field" style={{ fontFamily: "'DM Mono', monospace", color: 'var(--blue-vivid)' }} value={newClubCustomId} onChange={e => setNewClubCustomId(e.target.value.toUpperCase())} />
-                  </div>
-                  <div>
-                    <label className="field-label">Primary Sport</label>
-                    <select className="field" value={newClubSport} onChange={e => setNewClubSport(e.target.value as SportType)}>
-                      <option value="BJJ">Brazilian Jiu-Jitsu</option>
-                      <option value="No-Gi">No-Gi / Grappling</option>
-                      <option value="Judo">Judo</option>
-                      <option value="Wrestling">Wrestling</option>
-                      <option value="Karate">Karate</option>
-                    </select>
-                  </div>
-                  <div className="row gap-2" style={{ paddingTop: 8 }}>
-                    <button onClick={() => setJoinStep('SELECT')} className="btn btn-ghost flex-1">Back</button>
-                    <button onClick={handleJoinOrCreate} disabled={loading || !newClubName} className="btn btn-primary flex-1">Launch</button>
-                  </div>
-                </div>
-              )}
+        <Modal
+          onClose={closeJoinModal}
+          onSubmit={joinStep === 'SELECT' ? undefined : handleJoinOrCreate}
+          title={joinStep === 'CREATE' ? 'Create an academy' : joinStep === 'JOIN' ? 'Join an academy' : 'Add an academy'}
+          description={
+            joinStep === 'JOIN' ? 'Ask your coach for the academy code.'
+            : joinStep === 'CREATE' ? 'You can invite members once it is set up.'
+            : 'Train at more than one gym? You can switch between them any time.'
+          }
+        >
+          {joinStep === 'SELECT' && (
+            <div className="col gap-2">
+              <JoinOption icon="users" title="Join an existing academy" body="Connect to your gym using its academy code." onClick={() => setJoinStep('JOIN')} />
+              <JoinOption icon="building" title="Create a new academy" body="Run your own timetable, roster and announcements." onClick={() => setJoinStep('CREATE')} />
             </div>
-          </div>
-        </div>
+          )}
+
+          {joinStep === 'JOIN' && (
+            <>
+              <div>
+                <label className="field-label" htmlFor="join-code">Academy code</label>
+                <input
+                  id="join-code"
+                  placeholder="NORTHSIDE-BJJ"
+                  className="field mono"
+                  style={{ textTransform: 'uppercase' }}
+                  value={joinClubId}
+                  onChange={e => setJoinClubId(e.target.value.toUpperCase())}
+                  autoFocus
+                />
+                {IS_DEMO && <p className="field-hint">Demo: try RIVERSIDE-JUDO or create one instead.</p>}
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setJoinStep('SELECT')} className="btn btn-ghost">Back</button>
+                <button type="submit" disabled={saving || !joinClubId.trim()} className="btn btn-primary">{saving ? 'Joining…' : 'Join'}</button>
+              </div>
+            </>
+          )}
+
+          {joinStep === 'CREATE' && (
+            <>
+              <div>
+                <label className="field-label" htmlFor="club-name">Academy name</label>
+                <input id="club-name" placeholder="e.g. Northside Jiu-Jitsu" className="field" value={newClubName} onChange={e => setNewClubName(e.target.value)} autoFocus />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="club-code">Academy code</label>
+                <input id="club-code" placeholder="NORTHSIDE-BJJ" className="field mono" value={newClubCustomId} onChange={e => setNewClubCustomId(e.target.value.toUpperCase().replace(/\s+/g, '-'))} />
+                <p className="field-hint">Members use this code to join. Letters, numbers and dashes.</p>
+              </div>
+              <div>
+                <label className="field-label" htmlFor="club-sport">Discipline</label>
+                <select id="club-sport" className="field" value={newClubSport} onChange={e => setNewClubSport(e.target.value as SportType)}>
+                  {(Object.keys(SPORT_LABELS) as SportType[]).map(s => (
+                    <option key={s} value={s}>{SPORT_LABELS[s]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setJoinStep('SELECT')} className="btn btn-ghost">Back</button>
+                <button type="submit" disabled={saving || !newClubName.trim() || !newClubCustomId.trim()} className="btn btn-primary">{saving ? 'Creating…' : 'Create academy'}</button>
+              </div>
+            </>
+          )}
+        </Modal>
       )}
     </div>
   );
 };
 
-const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: string; label: string }> = ({ active, onClick, icon, label }) => {
-  const icons: any = {
-    grid: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-    users: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-    calendar: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-        <line x1="16" y1="2" x2="16" y2="6" />
-        <line x1="8" y1="2" x2="8" y2="6" />
-        <line x1="3" y1="10" x2="21" y2="10" />
-      </svg>
-    ),
-    user: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-    ),
-  };
+const JoinOption: React.FC<{ icon: IconName; title: string; body: string; onClick: () => void }> = ({ icon, title, body, onClick }) => (
+  <button type="button" onClick={onClick} className="card card-p row gap-3" style={{ alignItems: 'flex-start' }}>
+    <span className="list-icon" style={{ background: 'var(--blue-light)', color: 'var(--blue-vivid)' }}><Icon name={icon} size={18} /></span>
+    <span className="col flex-1">
+      <span className="card-title">{title}</span>
+      <span className="muted" style={{ fontSize: '0.8125rem', marginTop: 2, lineHeight: 1.45 }}>{body}</span>
+    </span>
+    <span className="chevron" style={{ alignSelf: 'center' }}><Icon name="chevronRight" size={18} /></span>
+  </button>
+);
 
-  return (
-    <button onClick={onClick} className={`tab ${active ? 'active' : 'inactive'}`}>
-      <div className="tab-icon-wrap">{icons[icon]}</div>
-      <span className="tab-lbl">{label}</span>
-    </button>
-  );
-};
+const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: IconName; label: string }> = ({ active, onClick, icon, label }) => (
+  <button onClick={onClick} className={`tab ${active ? 'active' : 'inactive'}`} aria-current={active ? 'page' : undefined}>
+    <span className="tab-icon-wrap"><Icon name={icon} size={21} strokeWidth={active ? 2.2 : 1.8} /></span>
+    <span className="tab-lbl">{label}</span>
+  </button>
+);
 
 export default App;
