@@ -1,16 +1,19 @@
 import {
   Member,
   ClassRecap,
-  UserRole,
   SportType,
   Class,
   Booking,
-  Club,
   ClubAlert,
 } from "../types";
 import { supabase } from "./supabaseClient";
+import { IS_DEMO } from "./config";
+import { demoDataService } from "./demoDataService";
+import { toLocalISODate } from "../lib/dates";
 
-export const dataService = {
+export type AuthEvent = "SIGNED_IN" | "SIGNED_OUT" | string;
+
+const supabaseDataService = {
   async signUp(email: string, password: string, username: string) {
     const { data, error } = await (supabase.auth as any).signUp({
       email,
@@ -55,6 +58,42 @@ export const dataService = {
     if (error) throw error;
   },
 
+  async getSessionUserId(): Promise<string | null> {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.id ?? null;
+  },
+
+  /** Returns an unsubscribe function. */
+  onAuthStateChange(callback: (event: AuthEvent, userId: string | null) => void): () => void {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      callback(event, session?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
+  },
+
+  async sendPasswordReset(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+  },
+
+  async getSessionEmail(): Promise<string | null> {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.email ?? null;
+  },
+
+  /** Uploads to the `avatars` bucket and returns the public URL. */
+  async uploadAvatar(userId: string, file: File): Promise<string> {
+    const fileExt = file.name.split(".").pop() || "jpg";
+    const filePath = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+
+    const { error } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, file, { cacheControl: "3600", upsert: true });
+    if (error) throw error;
+
+    return supabase.storage.from("avatars").getPublicUrl(filePath).data.publicUrl;
+  },
+
   async getProfile(userId: string) {
     const { data, error } = await supabase
       .from("profiles")
@@ -83,41 +122,41 @@ export const dataService = {
     return data;
   },
 
-async createClub(
-  ownerId: string,
-  name: string,
-  customId: string,
-  sport: SportType
-) {
-  // 1) create club
-  const { data: club, error: clubError } = await supabase
-    .from("clubs")
-    .insert([{ name, custom_id: customId, sport, owner_id: ownerId }])
-    .select()
-    .single();
+  async createClub(
+    ownerId: string,
+    name: string,
+    customId: string,
+    sport: SportType
+  ) {
+    // 1) create club
+    const { data: club, error: clubError } = await supabase
+      .from("clubs")
+      .insert([{ name, custom_id: customId, sport, owner_id: ownerId }])
+      .select()
+      .single();
 
-  if (clubError) throw clubError;
-  if (!club) throw new Error("Club insert returned no data.");
+    if (clubError) throw clubError;
+    if (!club) throw new Error("Club insert returned no data.");
 
-  // 2) create membership row
-  const { error: membershipError } = await supabase
-    .from("memberships")
-    .insert([{ user_id: ownerId, club_id: club.id, role: "OWNER" }]);
+    // 2) create membership row
+    const { error: membershipError } = await supabase
+      .from("memberships")
+      .insert([{ user_id: ownerId, club_id: club.id, role: "OWNER" }]);
 
-  if (membershipError) throw membershipError;
+    if (membershipError) throw membershipError;
 
-  // 3) update profile to point at club
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .upsert(
-      { id: ownerId, club_id: club.id, role: "OWNER" },
-      { onConflict: "id" }
-    );
+    // 3) update profile to point at club
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert(
+        { id: ownerId, club_id: club.id, role: "OWNER" },
+        { onConflict: "id" }
+      );
 
-  if (profileError) throw profileError;
+    if (profileError) throw profileError;
 
-  return club;
-},
+    return club;
+  },
 
   async updateClub(clubId: string, updates: any) {
     const { error } = await supabase.from("clubs").update(updates).eq("id", clubId);
@@ -163,37 +202,36 @@ async createClub(
     return data;
   },
 
-async joinClub(userId: string, customClubId: string) {
-  // 1) find club by custom_id
-  const { data: club, error: clubError } = await supabase
-    .from("clubs")
-    .select("id")
-    .eq("custom_id", customClubId)
-    .single();
+  async joinClub(userId: string, customClubId: string) {
+    // 1) find club by custom_id
+    const { data: club, error: clubError } = await supabase
+      .from("clubs")
+      .select("id")
+      .eq("custom_id", customClubId)
+      .single();
 
-  if (clubError) throw new Error("Club not found.");
-  if (!club) throw new Error("Club lookup returned no data.");
+    if (clubError) throw new Error("No academy found with that code.");
+    if (!club) throw new Error("Club lookup returned no data.");
 
-  // 2) insert membership
-  const { error: membershipError } = await supabase
-    .from("memberships")
-    .insert([{ user_id: userId, club_id: club.id, role: "MEMBER" }]);
+    // 2) insert membership
+    const { error: membershipError } = await supabase
+      .from("memberships")
+      .insert([{ user_id: userId, club_id: club.id, role: "MEMBER" }]);
 
-  if (membershipError) throw membershipError;
+    if (membershipError) throw membershipError;
 
-  // 3) update profile
-  const { error: profileError } = await supabase
-  .from("profiles")
-  .upsert(
-    { id: userId, club_id: club.id, role: "MEMBER" },
-    { onConflict: "id" }
-  );
+    // 3) update profile
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert(
+        { id: userId, club_id: club.id, role: "MEMBER" },
+        { onConflict: "id" }
+      );
 
+    if (profileError) throw profileError;
 
-  if (profileError) throw profileError;
-
-  return club;
-},
+    return club;
+  },
 
   async getMembers(clubId: string): Promise<Member[]> {
     // 1) memberships for this club
@@ -201,7 +239,6 @@ async joinClub(userId: string, customClubId: string) {
       .from("memberships")
       .select("user_id, role, created_at")
       .eq("club_id", clubId);
-      console.log("membership count", ms.length);
 
     if (mErr || !ms) return [];
 
@@ -213,7 +250,6 @@ async joinClub(userId: string, customClubId: string) {
       .from("profiles")
       .select("*")
       .in("id", ids);
-      console.log("profiles fetched", ps?.length);
 
     if (pErr || !ps) return [];
 
@@ -233,9 +269,7 @@ async joinClub(userId: string, customClubId: string) {
         role: m.role,
         lastAttendance: p?.updated_at,
       };
-      
     });
-    
   },
 
   async removeMember(clubId: string, userId: string) {
@@ -335,7 +369,6 @@ async joinClub(userId: string, customClubId: string) {
         stripes: p?.stripes || 0,
         totalSessions: p?.total_sessions || 0,
         joinDate: p?.created_at,
-        is_premium_member: false, // keep field if your UI expects it
         avatar_url: p?.avatar_url,
       };
     });
@@ -352,12 +385,15 @@ async joinClub(userId: string, customClubId: string) {
     if (error) throw error;
   },
 
-  async getNextBooking(userId: string): Promise<(Booking & { classes: Class }) | null> {
+  /** The soonest booking from today onwards, within the given club. */
+  async getNextBooking(userId: string, clubId: string): Promise<(Booking & { classes: Class }) | null> {
     const { data, error } = await supabase
       .from("bookings")
-      .select("*, classes(*)")
+      .select("*, classes!inner(*)")
       .eq("user_id", userId)
-      .order("booking_date", { ascending: false })
+      .eq("classes.club_id", clubId)
+      .gte("booking_date", toLocalISODate(new Date()))
+      .order("booking_date", { ascending: true })
       .limit(1)
       .maybeSingle();
 
@@ -372,7 +408,7 @@ async joinClub(userId: string, customClubId: string) {
     if (error) throw error;
   },
 
-  async getAlerts(clubId: string): Promise<any[]> {
+  async getAlerts(clubId: string): Promise<ClubAlert[]> {
     const { data, error } = await supabase
       .from("club_alerts")
       .select("*")
@@ -420,3 +456,7 @@ async joinClub(userId: string, customClubId: string) {
     }));
   },
 };
+
+export type DataService = typeof supabaseDataService;
+
+export const dataService: DataService = IS_DEMO ? demoDataService : supabaseDataService;
