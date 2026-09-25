@@ -1,24 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole, SportType, Member, Class, Booking, ClubAlert } from '../types';
 import { dataService } from '../services/dataService';
+import { useFeedback } from './ui/Feedback';
+import Icon from './ui/Icon';
+import { todayName, shortTime, timeAgo, formatShortDate, nextDateForDay, buildDateTime } from '../lib/dates';
 
 interface DashboardProps {
   userId: string;
   role: UserRole;
   sport: SportType;
   members: Member[];
+  clubId?: string;
+  username: string;
+  onNavigate: (tab: 'dashboard' | 'members' | 'schedule' | 'profile') => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) => {
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
+const Dashboard: React.FC<DashboardProps> = ({ userId, role, members, clubId, username, onNavigate }) => {
+  const { toast } = useFeedback();
   const [weeklyTarget, setWeeklyTarget] = useState<number>(3);
   const [attendanceCount, setAttendanceCount] = useState<number>(0);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
   const [tempTarget, setTempTarget] = useState(weeklyTarget);
   const [nextBooking, setNextBooking] = useState<(Booking & { classes: Class }) | null>(null);
-  const [clubId, setClubId] = useState<string | null>(null);
+  const [todaysClasses, setTodaysClasses] = useState<Class[] | null>(null);
   const [activeAlert, setActiveAlert] = useState<ClubAlert | null>(null);
   const [broadcastText, setBroadcastText] = useState('');
   const [posting, setPosting] = useState(false);
+
+  const isOwner = role === UserRole.OWNER;
+  const firstName = username.split(' ')[0];
 
   useEffect(() => {
     const savedTarget = localStorage.getItem('mt_weekly_target');
@@ -26,26 +43,26 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
 
     const savedAttendance = localStorage.getItem('mt_current_attendance');
     if (savedAttendance) setAttendanceCount(parseInt(savedAttendance, 10));
-
-    loadDashboardData();
   }, [userId]);
 
-  const loadDashboardData = async () => {
-    if (userId) {
-      const booking = await dataService.getNextBooking(userId);
-      setNextBooking(booking);
+  useEffect(() => {
+    loadDashboardData();
+  }, [userId, clubId]);
 
-      const memberships = await dataService.getUserMemberships(userId);
-      if (memberships.length > 0) {
-        const club = memberships[0].club_id;
-        setClubId(club);
-        const alerts = await dataService.getAlerts(club);
-        if (alerts.length > 0) setActiveAlert(alerts[0]);
-      }
-    }
+  const loadDashboardData = async () => {
+    if (!userId || !clubId) return;
+    const [booking, alerts, classes] = await Promise.all([
+      dataService.getNextBooking(userId, clubId),
+      dataService.getAlerts(clubId).catch(() => []),
+      dataService.getClasses(clubId),
+    ]);
+    setNextBooking(booking);
+    setActiveAlert(alerts[0] ?? null);
+    setTodaysClasses(classes.filter(c => c.day === todayName()));
   };
 
-  const handlePostAlert = async () => {
+  const handlePostAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!clubId || !broadcastText.trim()) return;
     setPosting(true);
     try {
@@ -53,8 +70,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
       setBroadcastText('');
       const alerts = await dataService.getAlerts(clubId);
       if (alerts.length > 0) setActiveAlert(alerts[0]);
+      toast('Announcement sent to your members');
     } catch (err) {
-      alert('Failed to post alert.');
+      toast("Couldn't post the announcement.", 'error');
     } finally {
       setPosting(false);
     }
@@ -70,141 +88,191 @@ const Dashboard: React.FC<DashboardProps> = ({ userId, role, sport, members}) =>
     const newCount = attendanceCount + 1;
     setAttendanceCount(newCount);
     localStorage.setItem('mt_current_attendance', newCount.toString());
+    toast(newCount === weeklyTarget ? 'Weekly goal reached. Nice work.' : 'Session logged');
   };
 
   const progressPercent = Math.min((attendanceCount / weeklyTarget) * 100, 100);
   const targetHit = attendanceCount >= weeklyTarget;
   const lifetimeSessions = (members.find(m => m.id === userId)?.totalSessions || 0) + attendanceCount;
+  const remaining = Math.max(weeklyTarget - attendanceCount, 0);
+
+  const now = new Date();
+  const today = nextDateForDay(todayName());
 
   return (
     <>
       {activeAlert && (
-        <div className="banner">
+        <div className="banner" role="status">
           <div className="banner-icon">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <Icon name="megaphone" size={18} />
           </div>
           <div className="flex-1">
-            <p className="banner-title">Coach Broadcast</p>
+            <p className="banner-title">Announcement · {timeAgo(activeAlert.created_at)}</p>
             <p className="banner-body">{activeAlert.title}</p>
-            {activeAlert.body && <p style={{ fontSize: '0.75rem', color: 'var(--ink-500)', marginTop: 4 }}>{activeAlert.body}</p>}
+            {activeAlert.body && <p className="banner-note">{activeAlert.body}</p>}
           </div>
-          <button onClick={() => setActiveAlert(null)} className="banner-close" aria-label="Dismiss">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"/></svg>
+          <button onClick={() => setActiveAlert(null)} className="banner-close" aria-label="Dismiss announcement">
+            <Icon name="close" size={16} />
           </button>
         </div>
       )}
 
       <section className="hero">
-        <div className="relative">
-          <p className="hero-eyebrow">Oss, {role === UserRole.OWNER ? 'Coach' : 'Champ'}</p>
-          <h2 className="hero-name">Consistency beats intensity</h2>
-          <p className="hero-sub">Every session counts.</p>
-          <button onClick={handleCheckIn} className="btn" style={{ marginTop: 20, background: '#fff', color: 'var(--blue-vivid)', boxShadow: '0 4px 14px rgba(0,0,0,0.15)' }}>
-            Check-in Session
-          </button>
+        <p className="hero-eyebrow">{greeting()}, {firstName}</p>
+        <h2 className="hero-name">
+          {targetHit ? "You've hit your goal this week" : `${remaining} more session${remaining === 1 ? '' : 's'} to hit your goal`}
+        </h2>
+        <p className="hero-sub">Consistency beats intensity. Log every session you train.</p>
+        <button onClick={handleCheckIn} className="btn btn-on-dark" style={{ marginTop: 18 }}>
+          <Icon name="check" size={18} strokeWidth={2.5} />
+          Log a session
+        </button>
+        <div className="hero-stats">
+          <div>
+            <p className="hero-stat-val">{lifetimeSessions.toLocaleString()}</p>
+            <p className="hero-stat-lbl">Lifetime sessions</p>
+          </div>
+          <div>
+            <p className="hero-stat-val">{Math.round(lifetimeSessions * 1.5).toLocaleString()}h</p>
+            <p className="hero-stat-lbl">Mat time</p>
+          </div>
+          {isOwner && (
+            <div>
+              <p className="hero-stat-val">{members.length}</p>
+              <p className="hero-stat-lbl">Members</p>
+            </div>
+          )}
         </div>
       </section>
 
-      {role === UserRole.OWNER && (
-        <section className="card card-p col gap-3">
-          <h3 className="section-lbl" style={{ padding: 0, color: 'var(--blue-vivid)' }}>Broadcast to Team</h3>
+      {!isOwner && nextBooking && (
+        <section className="card card-p">
+          <div className="row sb" style={{ marginBottom: 14 }}>
+            <h3 className="section-lbl">Your next class</h3>
+            <span className="badge green"><Icon name="check" size={12} strokeWidth={3} /> Booked</span>
+          </div>
+          <div className="row gap-3">
+            <div className="card-inset col" style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--blue-vivid)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{nextBooking.classes.day.substring(0, 3)}</span>
+              <span style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--ink-900)', lineHeight: 1.1 }}>{new Date(nextBooking.booking_date + 'T00:00').getDate()}</span>
+            </div>
+            <div className="flex-1">
+              <h4 className="card-title">{nextBooking.classes.name}</h4>
+              <p className="muted" style={{ fontSize: '0.8125rem', marginTop: 2 }}>
+                {formatShortDate(nextBooking.booking_date + 'T00:00')} · {shortTime(nextBooking.classes.start_time)}–{shortTime(nextBooking.classes.end_time)}
+              </p>
+              <p className="muted" style={{ fontSize: '0.8125rem' }}>Coach {nextBooking.classes.instructor} · {nextBooking.classes.type}</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="card card-p relative">
+        <div className="row sb" style={{ marginBottom: 14 }}>
+          <div>
+            <p className="section-lbl">This week</p>
+            <h3 className="card-title" style={{ marginTop: 2 }}>Training goal</h3>
+          </div>
+          <button
+            onClick={() => { setTempTarget(weeklyTarget); setIsEditingTarget(true); }}
+            className="btn-icon"
+            aria-label="Edit weekly goal"
+          >
+            <Icon name="edit" size={16} />
+          </button>
+        </div>
+
+        <div className="row gap-2" style={{ alignItems: 'baseline', marginBottom: 14 }}>
+          <span className="big-num" style={{ color: targetHit ? 'var(--green-vivid)' : undefined }}>{attendanceCount}</span>
+          <span className="muted" style={{ fontSize: '0.9375rem', fontWeight: 500 }}>of {weeklyTarget} sessions</span>
+          <span className={`badge ${targetHit ? 'green' : 'blue'}`} style={{ marginLeft: 'auto' }}>{Math.round(progressPercent)}%</span>
+        </div>
+
+        {weeklyTarget <= 10 ? (
+          <div className="goal-pips" aria-hidden="true">
+            {Array.from({ length: weeklyTarget }, (_, i) => (
+              <span key={i} className={`goal-pip ${i < attendanceCount ? 'on' : ''} ${targetHit ? 'done' : ''}`} />
+            ))}
+          </div>
+        ) : (
+          <div className="progress-track">
+            <div className={`progress-fill ${targetHit ? 'done' : ''}`} style={{ width: `${progressPercent}%` }} />
+          </div>
+        )}
+
+        {isEditingTarget && (
+          <div className="col" style={{ position: 'absolute', inset: 0, background: 'var(--sand-50)', padding: 16, zIndex: 5, gap: 12 }}>
+            <div>
+              <h4 className="card-title">Weekly goal</h4>
+              <p className="muted" style={{ fontSize: '0.8125rem', marginTop: 2 }}>How many sessions a week are you aiming for?</p>
+            </div>
+            <div className="row gap-4" style={{ justifyContent: 'center', flex: 1 }}>
+              <button onClick={() => setTempTarget(Math.max(1, tempTarget - 1))} className="btn-icon" style={{ width: 44, height: 44, fontSize: '1.25rem' }} aria-label="Decrease">−</button>
+              <span className="big-num" style={{ minWidth: 56, textAlign: 'center' }}>{tempTarget}</span>
+              <button onClick={() => setTempTarget(Math.min(14, tempTarget + 1))} className="btn-icon" style={{ width: 44, height: 44, fontSize: '1.25rem' }} aria-label="Increase">+</button>
+            </div>
+            <div className="row gap-2">
+              <button onClick={() => setIsEditingTarget(false)} className="btn btn-ghost btn-sm flex-1">Cancel</button>
+              <button onClick={saveTarget} className="btn btn-primary btn-sm flex-1">Save goal</button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="col gap-2">
+        <div className="section-head">
+          <h3 className="section-lbl">Today's classes</h3>
+          <button onClick={() => onNavigate('schedule')} className="link-btn accent">Full timetable <Icon name="chevronRight" size={14} /></button>
+        </div>
+        {todaysClasses === null ? (
+          <div className="skeleton" style={{ height: 120 }} />
+        ) : todaysClasses.length === 0 ? (
+          <div className="empty-state" style={{ padding: '24px 16px' }}>No classes on the timetable today. Rest up.</div>
+        ) : (
+          <div className="card">
+            {todaysClasses.map(c => {
+              const finished = now >= buildDateTime(today, c.end_time);
+              const live = !finished && now >= buildDateTime(today, c.start_time);
+              return (
+                <button key={c.id} onClick={() => onNavigate('schedule')} className="list-row" style={{ opacity: finished ? 0.55 : 1 }}>
+                  <div className="row gap-3 flex-1">
+                    <div className="class-time" style={{ minWidth: 44 }}>
+                      <span className="class-time-start" style={{ fontSize: '0.875rem' }}>{shortTime(c.start_time)}</span>
+                      <span className="class-time-end">{shortTime(c.end_time)}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="list-label truncate">{c.name}</p>
+                      <p className="list-detail">Coach {c.instructor} · {c.type}</p>
+                    </div>
+                  </div>
+                  {live ? <span className="badge green">In progress</span> : finished ? <span className="badge">Done</span> : <span className="chevron"><Icon name="chevronRight" size={18} /></span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {isOwner && (
+        <form className="card card-p col gap-3" onSubmit={handlePostAlert}>
+          <div>
+            <h3 className="card-title">Post an announcement</h3>
+            <p className="muted" style={{ fontSize: '0.8125rem', marginTop: 2 }}>Shows at the top of every member's home screen.</p>
+          </div>
           <div className="row gap-2">
             <input
               value={broadcastText}
               onChange={e => setBroadcastText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handlePostAlert(); }}
-              placeholder="e.g. Coach running 10 mins late, sorry!"
+              placeholder="e.g. Running 10 minutes late tonight"
               className="field flex-1"
+              aria-label="Announcement text"
             />
-            <button onClick={handlePostAlert} disabled={posting || !broadcastText.trim()} className="btn btn-primary">
-              {posting ? '...' : 'Post'}
+            <button type="submit" disabled={posting || !broadcastText.trim()} className="btn btn-primary">
+              {posting ? 'Posting…' : 'Post'}
             </button>
           </div>
-        </section>
+        </form>
       )}
-
-      {role === UserRole.MEMBER && nextBooking && (
-        <section className="card card-p">
-          <div className="row sb mt-1" style={{ marginBottom: 16 }}>
-            <h3 className="section-lbl" style={{ padding: 0, color: 'var(--blue-vivid)' }}>Upcoming Appointment</h3>
-            <span className="badge green">Confirmed</span>
-          </div>
-          <div className="row gap-3">
-            <div className="card-inset col" style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--blue-vivid)', lineHeight: 1 }}>{nextBooking.classes.start_time.split(':')[0]}</span>
-              <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--ink-400)', textTransform: 'uppercase' }}>{nextBooking.classes.day.substring(0,3)}</span>
-            </div>
-            <div>
-              <h4 style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--ink-900)' }}>{nextBooking.classes.name}</h4>
-              <p style={{ fontSize: '0.75rem', color: 'var(--ink-400)', marginTop: 2 }}>with Coach {nextBooking.classes.instructor} • {nextBooking.classes.type}</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      <div className="g2">
-        <div className="card card-p relative" style={{ gridColumn: '1 / -1' }}>
-          <div className="row sb" style={{ marginBottom: 20 }}>
-            <div>
-              <p className="section-lbl" style={{ padding: 0 }}>Training Target</p>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--ink-900)' }}>Weekly Goal</h3>
-            </div>
-            <button
-              onClick={() => { setTempTarget(weeklyTarget); setIsEditingTarget(true); }}
-              className="btn-icon"
-              aria-label="Edit weekly goal"
-            >
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-            </button>
-          </div>
-
-          <div className="row gap-2" style={{ alignItems: 'flex-end', marginBottom: 20 }}>
-            <h3 style={{ fontSize: '3.5rem', fontWeight: 800, letterSpacing: '-2px', lineHeight: 1, color: targetHit ? 'var(--green-vivid)' : 'var(--ink-900)' }}>
-              {attendanceCount}
-            </h3>
-            <span className="section-lbl" style={{ padding: 0, paddingBottom: 8 }}>/ {weeklyTarget} SESSIONS</span>
-          </div>
-
-          <div className="col gap-3">
-            <div className="progress-track">
-              <div className={`progress-fill ${targetHit ? 'done' : ''}`} style={{ width: `${progressPercent}%` }} />
-            </div>
-            <div className="row sb">
-              <p className="section-lbl" style={{ padding: 0 }}>
-                {targetHit ? 'Target Achieved! 🔥' : 'Consistency is key'}
-              </p>
-              <span className="badge blue">{Math.round(progressPercent)}%</span>
-            </div>
-          </div>
-
-          {isEditingTarget && (
-            <div className="col" style={{ position: 'absolute', inset: 0, background: 'var(--sand-50)', borderRadius: 'var(--radius-lg)', padding: 24, zIndex: 5 }}>
-              <h4 style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--ink-900)' }}>Adjust Goal</h4>
-              <p style={{ fontSize: '0.75rem', color: 'var(--ink-400)', marginTop: 6 }}>How many sessions a week do you want to hit? Set a realistic pace.</p>
-
-              <div className="row gap-3" style={{ justifyContent: 'center', alignItems: 'center', margin: 'auto 0' }}>
-                <button onClick={() => setTempTarget(Math.max(1, tempTarget - 1))} className="btn-icon" style={{ width: 52, height: 52, fontSize: '1.5rem' }}>−</button>
-                <span style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--ink-900)', minWidth: 64, textAlign: 'center' }}>{tempTarget}</span>
-                <button onClick={() => setTempTarget(tempTarget + 1)} className="btn-icon" style={{ width: 52, height: 52, fontSize: '1.5rem' }}>+</button>
-              </div>
-
-              <div className="row gap-2">
-                <button onClick={() => setIsEditingTarget(false)} className="btn btn-ghost flex-1">Cancel</button>
-                <button onClick={saveTarget} className="btn btn-primary flex-1">Update Goal</button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="stat">
-          <p className="stat-val">{lifetimeSessions}</p>
-          <p className="stat-lbl">Lifetime Mats</p>
-        </div>
-        <div className="stat">
-          <p className="stat-val">{(lifetimeSessions * 1.5).toFixed(0)}h</p>
-          <p className="stat-lbl">Mat Hours</p>
-        </div>
-      </div>
     </>
   );
 };
