@@ -5,7 +5,8 @@ export default {
     "./index.tsx",
     "./App.tsx",
     "./components/**/*.{ts,tsx}",
-    "./services/**/*.{ts,tsx}"
+    "./services/**/*.{ts,tsx}",
+    "./lib/**/*.{ts,tsx}"
   ],
   theme: {
     extend: {}

@@ -1,5 +1,5 @@
 
-import { SportType, RankDefinition, ClassRecap, Member } from './types';
+import { SportType, RankDefinition } from './types';
 
 export const SPORT_RANKS: Record<SportType, RankDefinition> = {
   'BJJ': {
@@ -58,5 +58,3 @@ export const SPORT_RANKS: Record<SportType, RankDefinition> = {
   }
 };
 
-export const MOCK_MEMBERS: Member[] = [];
-export const MOCK_RECAPS: ClassRecap[] = [];
